@@ -22,13 +22,14 @@ class QLClassGenerator {
 
     }
 
-    static TypeSpec generateResponse(QLQuery qlQuery, String fileName) {
-        return "";
-    }
-
     static TypeSpec generateQuery(QLQuery qlQuery, String fileName) {
-        MethodSpec.Builder constructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
-        MethodSpec.Builder emptyConstructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
+        MethodSpec.Builder constructor = MethodSpec
+                .constructorBuilder()
+                .addModifiers(Modifier.PUBLIC);
+        MethodSpec.Builder emptyConstructor = MethodSpec
+                .constructorBuilder()
+                .addModifiers(Modifier.PUBLIC);
+
         List<FieldSpec> fields = new ArrayList<>();
         List<MethodSpec> getterAndSetter = new ArrayList<>();
         List<FieldSpec> mandatoryFields = new ArrayList<>();
@@ -36,57 +37,25 @@ class QLClassGenerator {
         computeParams(qlQuery, fields, constructor, getterAndSetter, mandatoryFields)
         computeVarsMap(fields, getterAndSetter);
 
-        String className = qlQuery.name == null || qlQuery.name.equals("") ? fileName : qlQuery.name
+        boolean isNameEmpty = qlQuery.name == null
+        String className = isNameEmpty || qlQuery.name.equals("") ? fileName : qlQuery.name;
+        FieldSpec.Builder queryField = FieldSpec
+                .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
+        queryField.initializer("\$S", qlQuery.printQuery())
+
         TypeSpec.Builder query = TypeSpec.classBuilder(className)
-            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addField(FieldSpec.builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL).initializer("\$S", qlQuery.printQuery()).build())
-            .addFields(fields)
-            .addMethod(constructor.build())
-            .addMethod(getQuery(mandatoryFields))
-            .addMethods(getterAndSetter);
+                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                .addField(queryField.build())
+                .addFields(fields)
+                .addMethod(constructor.build())
+                .addMethod(getQuery(mandatoryFields))
+                .addMethods(getterAndSetter);
 
         if (fields.size() > 0) {
             query.addMethod(emptyConstructor.build());
         }
 
         return query.build();
-    }
-
-    private static MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
-        ClassName exception = ClassName.get("com.applidium.qlrequest.exceptions", "QLException");
-        MethodSpec.Builder statement = MethodSpec.methodBuilder("query").addModifiers(Modifier.PUBLIC).returns(String.class).addException(exception);
-
-        for (FieldSpec field : mandatoryFields) {
-            statement.beginControlFlow("if(\$N == null)", field.name);
-            statement.addStatement("throw new \$T(\"Mandatory field : \$N is not set\")", exception, field.name);
-            statement.endControlFlow();
-        }
-
-        statement.addStatement("return \$N", "query");
-
-        return statement.build()
-    }
-
-    static void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
-
-        ClassName map = ClassName.get("java.util", "Map");
-        ClassName hashmap = ClassName.get("java.util", "HashMap");
-        ClassName key = ClassName.get("java.lang", "String");
-        ClassName value = ClassName.get("java.lang", "Object");
-        TypeName mapVars = ParameterizedTypeName.get(map, key, value);
-
-        MethodSpec.Builder getVars = MethodSpec.methodBuilder("getVariables");
-        getVars.addModifiers(Modifier.PUBLIC);
-        getVars.returns(Map.class);
-        getVars.addStatement("\$T result = new \$T<>()", mapVars, hashmap)
-        for (FieldSpec fieldSpec : fieldSpecs) {
-            getVars.beginControlFlow("if (\$N != null)", fieldSpec.name);
-            getVars.addStatement("result.put(\$S, \$N)", fieldSpec.name, fieldSpec.name);
-            getVars.endControlFlow();
-        }
-
-        getVars.addStatement("return result");
-        methodSpecs.add(getVars.build());
     }
 
     private
@@ -98,9 +67,13 @@ class QLClassGenerator {
             ArrayList<FieldSpec> mandatoryFields
     ) {
         for (QLVariablesElement element : qlQuery.getParameters().getParams()) {
-            //todo kelian(12/06/17) exception if arg name query
-            ParameterSpec param = ParameterSpec.builder(getType(element.type), element.name).build();
-            FieldSpec field = FieldSpec.builder(getType(element.type), element.name, Modifier.PRIVATE).build();
+            //todo kelian(12/06/17) exception if arg named query
+            ParameterSpec param = ParameterSpec
+                    .builder(getType(element.type), element.name)
+                    .build();
+            FieldSpec field = FieldSpec
+                    .builder(getType(element.type), element.name, Modifier.PRIVATE)
+                    .build();
             if (element.mandatory) {
                 mandatoryFields.add(field);
             }
@@ -161,7 +134,49 @@ class QLClassGenerator {
         return setter.addStatement("return \$N", param.name).build();
     }
 
-    static def generateQueryFields() {
+    static void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
 
+        ClassName map = ClassName.get("java.util", "Map");
+        ClassName hashmap = ClassName.get("java.util", "HashMap");
+        ClassName key = ClassName.get("java.lang", "String");
+        ClassName value = ClassName.get("java.lang", "Object");
+        TypeName mapVars = ParameterizedTypeName.get(map, key, value);
+
+        MethodSpec.Builder getVars = MethodSpec.methodBuilder("getVariables");
+        getVars.addModifiers(Modifier.PUBLIC);
+        getVars.returns(Map.class);
+        getVars.addStatement("\$T result = new \$T<>()", mapVars, hashmap)
+
+        for (FieldSpec fieldSpec : fieldSpecs) {
+            getVars.beginControlFlow("if (\$N != null)", fieldSpec.name);
+            getVars.addStatement("result.put(\$S, \$N)", fieldSpec.name, fieldSpec.name);
+            getVars.endControlFlow();
+        }
+
+        getVars.addStatement("return result");
+        methodSpecs.add(getVars.build());
+    }
+
+    private static MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
+        String packageName = "com.applidium.qlrequest.exceptions"
+        ClassName exception = ClassName.get(packageName, "QLException");
+
+        MethodSpec.Builder statement = MethodSpec.methodBuilder("query").
+                addModifiers(Modifier.PUBLIC)
+                .returns(String.class)
+                .addException(exception);
+
+        for (FieldSpec field : mandatoryFields) {
+            statement.beginControlFlow("if(\$N == null)", field.name);
+            String throwMessage = "throw new \$T(\"Mandatory field : \$N is not set\")"
+            statement.addStatement(throwMessage, exception, field.name);
+            statement.endControlFlow();
+        }
+        statement.addStatement("return \$N", "query");
+        return statement.build()
+    }
+
+    static TypeSpec generateResponse(QLQuery qlQuery, String fileName) {
+        return "";
     }
 }
