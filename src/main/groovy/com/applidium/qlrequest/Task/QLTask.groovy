@@ -1,6 +1,5 @@
 package com.applidium.qlrequest.Task
 
-import com.applidium.qlrequest.QLClassGenerator
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
@@ -17,7 +16,7 @@ public class QLTask extends DefaultTask {
         dir.eachFileRecurse (FileType.FILES) {
             file -> files << file
         }
-        project.file(files)
+        return files
     }
 
     @OutputDirectory
@@ -32,27 +31,29 @@ public class QLTask extends DefaultTask {
 
     @TaskAction
     def taskAction() {
+        println "Hello";
         def settingMaps = settingFiles().collect { computeQuery(it) }
     }
 
-    static public void computeQuery(String f) {
+    public void computeQuery(File f) {
         if (f) {
-            def source = QLClassGenerator.build(f).generateSource()
+            println f;
+            /*def source = QLClassGenerator.build(f).generateSource()
             def outputFile = outputFile()
             if (!outputFile.isFile()) {
                 outputFile.delete()
                 outputFile.parentFile.mkdirs()
             }
 
-            outputFile.text = "package ${packageName};\n" + source
+            outputFile.text = "package ${packageName};\n" + source*/
         }
     }
 
-    static public void createRequest(String ) {
+    public void createRequest(String ) {
 
     }
 
-    static public void createResponse() {
+    public void createResponse() {
 
     }
 }
