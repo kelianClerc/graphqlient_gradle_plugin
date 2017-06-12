@@ -31,16 +31,18 @@ class QLClassGenerator {
         MethodSpec.Builder emptyConstructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
         List<FieldSpec> fields = new ArrayList<>();
         List<MethodSpec> getterAndSetter = new ArrayList<>();
+        List<FieldSpec> mandatoryFields = new ArrayList<>();
 
-        computeParams(qlQuery, fields, constructor, getterAndSetter)
+        computeParams(qlQuery, fields, constructor, getterAndSetter, mandatoryFields)
         computeVarsMap(fields, getterAndSetter);
 
-        TypeSpec.Builder query = TypeSpec.classBuilder(qlQuery.name == null || qlQuery.name.equals("") ? fileName : qlQuery.name)
+        String className = qlQuery.name == null || qlQuery.name.equals("") ? fileName : qlQuery.name
+        TypeSpec.Builder query = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addField(FieldSpec.builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL).initializer("\$S", qlQuery.printQuery()).build())
             .addFields(fields)
             .addMethod(constructor.build())
-            .addMethod(MethodSpec.methodBuilder("query").addModifiers(Modifier.PUBLIC).returns(String.class).addStatement("return \$N", "query").build())
+            .addMethod(getQuery(mandatoryFields))
             .addMethods(getterAndSetter);
 
         if (fields.size() > 0) {
@@ -48,6 +50,21 @@ class QLClassGenerator {
         }
 
         return query.build();
+    }
+
+    private static MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
+        ClassName exception = ClassName.get("com.applidium.qlrequest.exceptions", "QLException");
+        MethodSpec.Builder statement = MethodSpec.methodBuilder("query").addModifiers(Modifier.PUBLIC).returns(String.class).addException(exception);
+
+        for (FieldSpec field : mandatoryFields) {
+            statement.beginControlFlow("if(\$N == null)", field.name);
+            statement.addStatement("throw new \$T(\"Mandatory field : \$N is not set\")", exception, field.name);
+            statement.endControlFlow();
+        }
+
+        statement.addStatement("return \$N", "query");
+
+        return statement.build()
     }
 
     static void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
@@ -63,7 +80,9 @@ class QLClassGenerator {
         getVars.returns(Map.class);
         getVars.addStatement("\$T result = new \$T<>()", mapVars, hashmap)
         for (FieldSpec fieldSpec : fieldSpecs) {
+            getVars.beginControlFlow("if (\$N != null)", fieldSpec.name);
             getVars.addStatement("result.put(\$S, \$N)", fieldSpec.name, fieldSpec.name);
+            getVars.endControlFlow();
         }
 
         getVars.addStatement("return result");
@@ -75,12 +94,18 @@ class QLClassGenerator {
             QLQuery qlQuery,
             ArrayList<FieldSpec> fields,
             MethodSpec.Builder constructor,
-            ArrayList<MethodSpec> getterAndSetter
+            ArrayList<MethodSpec> getterAndSetter,
+            ArrayList<FieldSpec> mandatoryFields
     ) {
         for (QLVariablesElement element : qlQuery.getParameters().getParams()) {
             //todo kelian(12/06/17) exception if arg name query
             ParameterSpec param = ParameterSpec.builder(getType(element.type), element.name).build();
-            fields.add(FieldSpec.builder(getType(element.type), element.name, Modifier.PRIVATE).build())
+            FieldSpec field = FieldSpec.builder(getType(element.type), element.name, Modifier.PRIVATE).build();
+            if (element.mandatory) {
+                mandatoryFields.add(field);
+            }
+
+            fields.add(field)
             constructor.addParameter(param);
             constructor.addStatement("this.\$N = \$N", param.name, param.name);
             getterAndSetter.add(generateGetter(param));
@@ -91,11 +116,11 @@ class QLClassGenerator {
     static TypeName getType(QLType qlType) {
         switch (qlType) {
             case QLType.INT:
-                return TypeName.get(int.class);
+                return TypeName.get(Integer.class);
             case QLType.FLOAT:
-                return TypeName.get(float.class);
+                return TypeName.get(Float.class);
             case QLType.BOOLEAN:
-                return TypeName.get(boolean.class);
+                return TypeName.get(Boolean.class);
             case QLType.ID:
             case QLType.STRING:
             default:
