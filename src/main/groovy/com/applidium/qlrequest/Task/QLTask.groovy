@@ -1,5 +1,6 @@
 package com.applidium.qlrequest.Task
 
+import com.applidium.qlrequest.QLClassGenerator
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
@@ -25,8 +26,15 @@ public class QLTask extends DefaultTask {
     }
 
     @OutputFile
-    File outputFile() {
-        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/Settings.java")
+    File outputRequestFile(String name) {
+        name = name.capitalize();
+        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}Request.java")
+    }
+
+    @OutputFile
+    File outputResponseFile(String name) {
+        name = name.capitalize();
+        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}.java")
     }
 
     @TaskAction
@@ -38,18 +46,20 @@ public class QLTask extends DefaultTask {
     public void computeQuery(File f) {
         if (f) {
             println f;
-            /*def source = QLClassGenerator.build(f).generateSource()
-            def outputFile = outputFile()
+            def source = QLClassGenerator.generateSource(f).get(0)
+            def outputFile = outputRequestFile(f.getName())
             if (!outputFile.isFile()) {
                 outputFile.delete()
                 outputFile.parentFile.mkdirs()
             }
 
-            outputFile.text = "package ${packageName};\n" + source*/
+            outputFile.text = "package ${packageName};\n" + source.toString()
         }
     }
 
-    public void createRequest(String ) {
+    public void createRequest() {
+
+
 
     }
 
