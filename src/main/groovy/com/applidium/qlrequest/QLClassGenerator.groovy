@@ -4,12 +4,7 @@ import com.applidium.qlrequest.Query.QLQuery
 import com.applidium.qlrequest.Query.QLType
 import com.applidium.qlrequest.Query.QLVariablesElement
 import com.applidium.qlrequest.Tree.QLParser
-import com.squareup.javapoet.ClassName
-import com.squareup.javapoet.FieldSpec
-import com.squareup.javapoet.MethodSpec
-import com.squareup.javapoet.ParameterSpec
-import com.squareup.javapoet.TypeName
-import com.squareup.javapoet.TypeSpec
+import com.squareup.javapoet.*
 
 import javax.lang.model.element.Modifier
 
@@ -38,12 +33,14 @@ class QLClassGenerator {
         List<MethodSpec> getterAndSetter = new ArrayList<>();
 
         computeParams(qlQuery, fields, constructor, getterAndSetter)
+        computeVarsMap(fields, getterAndSetter);
 
         TypeSpec.Builder query = TypeSpec.classBuilder(qlQuery.name == null || qlQuery.name.equals("") ? fileName : qlQuery.name)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addField(FieldSpec.builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL).initializer("\$S", qlQuery.printQuery()).build())
             .addFields(fields)
             .addMethod(constructor.build())
+            .addMethod(MethodSpec.methodBuilder("query").addModifiers(Modifier.PUBLIC).returns(String.class).addStatement("return \$N", "query").build())
             .addMethods(getterAndSetter);
 
         if (fields.size() > 0) {
@@ -51,6 +48,26 @@ class QLClassGenerator {
         }
 
         return query.build();
+    }
+
+    static void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
+
+        ClassName map = ClassName.get("java.util", "Map");
+        ClassName hashmap = ClassName.get("java.util", "HashMap");
+        ClassName key = ClassName.get("java.lang", "String");
+        ClassName value = ClassName.get("java.lang", "Object");
+        TypeName mapVars = ParameterizedTypeName.get(map, key, value);
+
+        MethodSpec.Builder getVars = MethodSpec.methodBuilder("getVariables");
+        getVars.addModifiers(Modifier.PUBLIC);
+        getVars.returns(Map.class);
+        getVars.addStatement("\$T result = new \$T<>()", mapVars, hashmap)
+        for (FieldSpec fieldSpec : fieldSpecs) {
+            getVars.addStatement("result.put(\$S, \$N)", fieldSpec.name, fieldSpec.name);
+        }
+
+        getVars.addStatement("return result");
+        methodSpecs.add(getVars.build());
     }
 
     private
@@ -61,6 +78,7 @@ class QLClassGenerator {
             ArrayList<MethodSpec> getterAndSetter
     ) {
         for (QLVariablesElement element : qlQuery.getParameters().getParams()) {
+            //todo kelian(12/06/17) exception if arg name query
             ParameterSpec param = ParameterSpec.builder(getType(element.type), element.name).build();
             fields.add(FieldSpec.builder(getType(element.type), element.name, Modifier.PRIVATE).build())
             constructor.addParameter(param);
