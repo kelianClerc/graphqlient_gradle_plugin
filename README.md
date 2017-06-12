@@ -1,0 +1,2 @@
+# GraphQLientPlugin
+Gradle graphql plugin
