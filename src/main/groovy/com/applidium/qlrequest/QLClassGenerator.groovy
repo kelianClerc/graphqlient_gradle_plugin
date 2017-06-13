@@ -215,18 +215,21 @@ class QLClassGenerator {
 
     void horizontalTreeReed(QLElement qlElement, TypeSpec.Builder parent, String packageName) {
         String packageNameChild = packageName + "." + parent.build().name;
+
+        String elementName = qlElement.getAlias() == null ? qlElement.getName() : qlElement.getAlias();
+
         if (qlElement instanceof QLNode) {
-            TypeSpec.Builder model = TypeSpec.classBuilder(qlElement.name.capitalize())
+            TypeSpec.Builder model = TypeSpec.classBuilder(elementName.capitalize())
                     .superclass(QLModel.class)
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
-            generateFieldSetterGetter(parent, builderType(packageNameChild, qlElement.name.capitalize(), qlElement.isList()), qlElement.getName());
+            generateFieldSetterGetter(parent, builderType(packageNameChild, elementName, qlElement.isList()), elementName);
             for (QLElement child : qlElement.getChildren()) {
                 horizontalTreeReed(child, model, packageNameChild);
             }
             parent.addType(model.build());
         } else if (qlElement instanceof QLLeaf) {
             QLLeaf leaf = (QLLeaf) qlElement;
-            generateFieldSetterGetter(parent, getType(leaf.getType()), leaf.getName());
+            generateFieldSetterGetter(parent, getType(leaf.getType()), elementName);
         } else if (qlElement instanceof QLFragmentNode) {
             QLFragment fragment = qlQuery.findFragment(qlElement.getName());
             for (QLElement child : fragment.getChildren()) {
@@ -236,7 +239,7 @@ class QLClassGenerator {
     }
 
     TypeName builderType(String packageName, final String modelName, boolean isList) {
-        final ClassName raw = rawBuilderType(modelName, packageName);
+        final ClassName raw = rawBuilderType(modelName.capitalize(), packageName);
         if (!isList) {
             return raw;
         }
