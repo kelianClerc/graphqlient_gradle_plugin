@@ -261,7 +261,7 @@ public class QLParser {
     private void handleSimpleField(int nextCommaIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCommaIndex));
         trimString(nextCommaIndex + 1);
-        currentPosition.get(elevation - 1).addChild(new QLLeaf(field));
+        currentPosition.get(elevation - 1).addChild(new QLLeaf(field, QLType.STRING));
         processNextField();
     }
 
@@ -278,7 +278,7 @@ public class QLParser {
             trimString(1);
         }
         else {
-            currentPosition.get(elevation - 1).addChild(new QLLeaf(field));
+            currentPosition.get(elevation - 1).addChild(new QLLeaf(field, QLType.STRING));
             if (toParse.charAt(0) == ',') {
                 trimString(1);
             }
@@ -297,7 +297,7 @@ public class QLParser {
 
     private void handleLastField(int endCarret) {
         QLElement field = createElementFromString(toParse.substring(0, endCarret));
-        currentPosition.get(elevation - 1).addChild(new QLLeaf(field));
+        currentPosition.get(elevation - 1).addChild(new QLLeaf(field, QLType.STRING));
         trimString(endCarret);
         processNextField();
     }

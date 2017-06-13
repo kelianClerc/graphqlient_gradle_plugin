@@ -27,7 +27,7 @@ public class QLTreeBuilder {
     public QLNode createNodeFromField(Member member, boolean shouldBuildTreeRecursively) {
         QLNode node = new QLNode(createElement(member));
         Class<?> fieldType = getFieldType(member);
-        node.setAssociatedObject(fieldType);
+        node.setType(fieldType);
         if (shouldBuildTreeRecursively) {
             List<QLElement> children = new ArrayList<>();
             Field[] declaredFields = fieldType.getDeclaredFields();
@@ -165,7 +165,7 @@ public class QLTreeBuilder {
     }
 
     public void propagateType(QLNode node) {
-        Class<?> associatedObject = node.getAssociatedObject();
+        Class<?> associatedObject = node.getType();
         if (associatedObject == Object.class) {
             return;
         }
@@ -175,7 +175,7 @@ public class QLTreeBuilder {
                 break;
             }
             QLNode elementToUpdate = (QLNode) element;
-            elementToUpdate.setAssociatedObject(findFieldTypeByName(associatedObject, element.getName(), element.getAlias()));
+            elementToUpdate.setType(findFieldTypeByName(associatedObject, element.getName(), element.getAlias()));
 
         }
     }

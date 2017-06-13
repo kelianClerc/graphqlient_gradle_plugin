@@ -46,7 +46,8 @@ public class QLTask extends DefaultTask {
     public void computeQuery(File f) {
         if (f) {
             println f;
-            def source = QLClassGenerator.generateSource(f).get(0)
+            def qlquery = QLClassGenerator.generateSource(f, packageName)
+            def source = qlquery.get(0)
             def outputFile = outputRequestFile(f.getName())
             if (!outputFile.isFile()) {
                 outputFile.delete()
@@ -54,6 +55,15 @@ public class QLTask extends DefaultTask {
             }
 
             outputFile.text = "package ${packageName};\n" + source.toString()
+
+            def source1 = qlquery.get(1)
+            def outputFile1 = outputResponseFile(f.getName())
+            if (!outputFile1.isFile()) {
+                outputFile1.delete()
+                outputFile1.parentFile.mkdirs()
+            }
+
+            outputFile1.text = "package ${packageName};\n" + source1.toString()
         }
     }
 
