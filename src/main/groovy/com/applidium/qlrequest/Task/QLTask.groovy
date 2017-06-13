@@ -1,6 +1,7 @@
 package com.applidium.qlrequest.Task
 
 import com.applidium.qlrequest.QLClassGenerator
+import com.squareup.javapoet.TypeSpec
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
@@ -47,8 +48,9 @@ public class QLTask extends DefaultTask {
         if (f) {
             println f;
             def qlquery = QLClassGenerator.generateSource(f, packageName)
-            def source = qlquery.get(0)
-            def outputFile = outputRequestFile(f.getName())
+            String fileName;
+            TypeSpec source = qlquery.get(0)
+            def outputFile = outputRequestFile(source.name)
             if (!outputFile.isFile()) {
                 outputFile.delete()
                 outputFile.parentFile.mkdirs()
@@ -56,8 +58,9 @@ public class QLTask extends DefaultTask {
 
             outputFile.text = "package ${packageName};\n" + source.toString()
 
-            def source1 = qlquery.get(1)
-            def outputFile1 = outputResponseFile(f.getName())
+
+            TypeSpec source1 = qlquery.get(1)
+            def outputFile1 = outputResponseFile(source1.name)
             if (!outputFile1.isFile()) {
                 outputFile1.delete()
                 outputFile1.parentFile.mkdirs()

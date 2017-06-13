@@ -20,14 +20,21 @@ class QLClassGenerator {
         parser.setToParse(fileContent);
         QLQuery qlQuery = parser.buildQuery();
         def files = []
-        def fileName = file.name.replaceFirst(~/\.[^\.]+$/, '');
 
-        boolean isNameEmpty = qlQuery.name == null
-        String className = isNameEmpty || qlQuery.name.equals("") ? fileName : qlQuery.name;
+        String className;
+        if (qlQuery.name == null || qlQuery.name.equals("")) {
+            className = removeFileExtension(file.getName()).capitalize();
+        } else {
+            className = qlQuery.name.capitalize();
+        }
+
         files << generateQuery(qlQuery, className)
         files << generateResponse(qlQuery, className, packageName)
         return files;
+    }
 
+    static String removeFileExtension(String text) {
+        return text[0..<text.lastIndexOf('.')];
     }
 
     static TypeSpec generateQuery(QLQuery qlQuery, String className) {
