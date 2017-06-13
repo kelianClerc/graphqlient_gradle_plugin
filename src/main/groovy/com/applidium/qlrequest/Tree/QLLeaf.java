@@ -27,7 +27,7 @@ public class QLLeaf extends QLElement {
 
     public QLLeaf(QLElement element, QLType type) {
         super(element);
-        this.type = type;
+        this.type = type == null ? QLType.STRING : type;
     }
 
     public QLType getType() {
