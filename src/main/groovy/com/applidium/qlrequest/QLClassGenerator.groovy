@@ -4,12 +4,7 @@ import com.applidium.qlrequest.Query.QLFragment
 import com.applidium.qlrequest.Query.QLQuery
 import com.applidium.qlrequest.Query.QLType
 import com.applidium.qlrequest.Query.QLVariablesElement
-import com.applidium.qlrequest.Tree.QLElement
-import com.applidium.qlrequest.Tree.QLFragmentNode
-import com.applidium.qlrequest.Tree.QLLeaf
-import com.applidium.qlrequest.Tree.QLNode
-import com.applidium.qlrequest.Tree.QLParser
-import com.applidium.qlrequest.model.QLModel
+import com.applidium.qlrequest.Tree.*
 import com.squareup.javapoet.*
 
 import javax.lang.model.element.Modifier
@@ -59,7 +54,7 @@ class QLClassGenerator {
                 .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
         queryField.initializer("\$S", qlQuery.printQuery())
 
-        TypeSpec.Builder query = TypeSpec.classBuilder(className)
+        TypeSpec.Builder query = TypeSpec.classBuilder(className + "Request")
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                 .addField(queryField.build())
                 .addFields(fields)
@@ -179,7 +174,7 @@ class QLClassGenerator {
         MethodSpec.Builder statement = MethodSpec.methodBuilder("query").
                 addModifiers(Modifier.PUBLIC)
                 .returns(String.class)
-                .addException(exception);
+                //.addException(exception);
 
         for (FieldSpec field : mandatoryFields) {
             statement.beginControlFlow("if(\$N == null)", field.name);
@@ -220,7 +215,7 @@ class QLClassGenerator {
 
         if (qlElement instanceof QLNode) {
             TypeSpec.Builder model = TypeSpec.classBuilder(elementName.capitalize())
-                    .superclass(QLModel.class)
+                    //.superclass(QLModel.class)
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
             generateFieldSetterGetter(parent, builderType(packageNameChild, elementName, qlElement.isList()), elementName);
             for (QLElement child : qlElement.getChildren()) {
