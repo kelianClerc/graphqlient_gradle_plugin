@@ -47,7 +47,8 @@ public class QLTask extends DefaultTask {
     public void computeQuery(File f) {
         if (f) {
             println f;
-            def qlquery = QLClassGenerator.generateSource(f, packageName)
+            QLClassGenerator classGenerator = new QLClassGenerator();
+            def qlquery = classGenerator.generateSource(f, packageName)
             String fileName;
             TypeSpec source = qlquery.get(0)
             def outputFile = outputRequestFile(source.name)
