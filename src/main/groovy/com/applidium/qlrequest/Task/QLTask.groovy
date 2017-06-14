@@ -1,6 +1,7 @@
 package com.applidium.qlrequest.Task
 
 import com.applidium.qlrequest.QLClassGenerator
+import com.squareup.javapoet.TypeSpec
 import groovy.io.FileType
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
@@ -9,6 +10,9 @@ public class QLTask extends DefaultTask {
 
     @Input
     def packageName
+
+    @Input
+    def variantDirName
 
     @InputFiles
     def settingFiles() {
@@ -22,13 +26,13 @@ public class QLTask extends DefaultTask {
 
     @OutputDirectory
     File outputDir() {
-        project.file("${project.buildDir}/generated/source/graphql")
+        project.file("${project.buildDir}/generated/source/graphql/${variantDirName}")
     }
 
     @OutputFile
     File outputRequestFile(String name) {
         name = name.capitalize();
-        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}Request.java")
+        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}.java")
     }
 
     @OutputFile
@@ -46,14 +50,27 @@ public class QLTask extends DefaultTask {
     public void computeQuery(File f) {
         if (f) {
             println f;
-            def source = QLClassGenerator.generateSource(f).get(0)
-            def outputFile = outputRequestFile(f.getName())
+            QLClassGenerator classGenerator = new QLClassGenerator();
+            def qlquery = classGenerator.generateSource(f, packageName)
+            String fileName;
+            TypeSpec source = qlquery.get(0)
+            def outputFile = outputRequestFile(source.name)
             if (!outputFile.isFile()) {
                 outputFile.delete()
                 outputFile.parentFile.mkdirs()
             }
 
             outputFile.text = "package ${packageName};\n" + source.toString()
+
+
+            TypeSpec source1 = qlquery.get(1)
+            def outputFile1 = outputResponseFile(source1.name)
+            if (!outputFile1.isFile()) {
+                outputFile1.delete()
+                outputFile1.parentFile.mkdirs()
+            }
+
+            outputFile1.text = "package ${packageName};\n" + source1.toString()
         }
     }
 

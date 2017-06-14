@@ -1,28 +1,41 @@
 package com.applidium.qlrequest
 
+import com.applidium.qlrequest.Query.QLFragment
 import com.applidium.qlrequest.Query.QLQuery
 import com.applidium.qlrequest.Query.QLType
 import com.applidium.qlrequest.Query.QLVariablesElement
-import com.applidium.qlrequest.Tree.QLParser
+import com.applidium.qlrequest.Tree.*
 import com.squareup.javapoet.*
 
 import javax.lang.model.element.Modifier
 
 class QLClassGenerator {
+    QLQuery qlQuery;
 
-    static def generateSource(File file) {
+    def generateSource(File file, String packageName) {
         String fileContent = file.text;
         QLParser parser = new QLParser();
         parser.setToParse(fileContent);
-        QLQuery qlQuery = parser.buildQuery();
+        this.qlQuery = parser.buildQuery();
         def files = []
-        files << generateQuery(qlQuery, file.name)
-        //files << generateResponse(qlQuery, file.name)
-        return files;
 
+        String className;
+        if (qlQuery.name == null || qlQuery.name.equals("")) {
+            className = removeFileExtension(file.getName()).capitalize();
+        } else {
+            className = qlQuery.name.capitalize();
+        }
+
+        files << generateQuery(className, packageName)
+        files << generateResponse(className, packageName)
+        return files;
     }
 
-    static TypeSpec generateQuery(QLQuery qlQuery, String fileName) {
+    String removeFileExtension(String text) {
+        return text[0..<text.lastIndexOf('.')];
+    }
+
+    TypeSpec generateQuery(String className, String packageName) {
         MethodSpec.Builder constructor = MethodSpec
                 .constructorBuilder()
                 .addModifiers(Modifier.PUBLIC);
@@ -34,19 +47,25 @@ class QLClassGenerator {
         List<MethodSpec> getterAndSetter = new ArrayList<>();
         List<FieldSpec> mandatoryFields = new ArrayList<>();
 
-        computeParams(qlQuery, fields, constructor, getterAndSetter, mandatoryFields)
+        computeParams(fields, constructor, getterAndSetter, mandatoryFields)
         computeVarsMap(fields, getterAndSetter);
 
-        boolean isNameEmpty = qlQuery.name == null
-        String className = isNameEmpty || qlQuery.name.equals("") ? fileName : qlQuery.name;
+        ClassName targetClassName = ClassName.get(packageName, className + "Response");
+
+        FieldSpec target = FieldSpec
+                .builder(Class.class, "target", Modifier.PUBLIC, Modifier.FINAL)
+                .initializer("\$T.class", targetClassName)
+                .build();
+
         FieldSpec.Builder queryField = FieldSpec
                 .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
         queryField.initializer("\$S", qlQuery.printQuery())
 
-        TypeSpec.Builder query = TypeSpec.classBuilder(className)
+        TypeSpec.Builder query = TypeSpec.classBuilder(className + "Request")
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                 .addField(queryField.build())
                 .addFields(fields)
+                .addField(target)
                 .addMethod(constructor.build())
                 .addMethod(getQuery(mandatoryFields))
                 .addMethods(getterAndSetter);
@@ -59,8 +78,7 @@ class QLClassGenerator {
     }
 
     private
-    static void computeParams(
-            QLQuery qlQuery,
+    void computeParams(
             ArrayList<FieldSpec> fields,
             MethodSpec.Builder constructor,
             ArrayList<MethodSpec> getterAndSetter,
@@ -86,7 +104,7 @@ class QLClassGenerator {
         }
     }
 
-    static TypeName getType(QLType qlType) {
+    TypeName getType(QLType qlType) {
         switch (qlType) {
             case QLType.INT:
                 return TypeName.get(Integer.class);
@@ -101,7 +119,7 @@ class QLClassGenerator {
         }
     }
 
-    static MethodSpec generateGetter(ParameterSpec param) {
+    MethodSpec generateGetter(ParameterSpec param) {
         MethodSpec.Builder getter = MethodSpec.methodBuilder("get" + param.name.capitalize())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(param.type);
@@ -119,12 +137,12 @@ class QLClassGenerator {
         return getter.build();
     }
 
-    static boolean isCollection(TypeName typeName) {
+    boolean isCollection(TypeName typeName) {
         final String returnType = typeName.toString();
         return returnType.startsWith("java.util.List<");
     }
 
-    static def generateSetter(ParameterSpec param) {
+    MethodSpec generateSetter(ParameterSpec param) {
         MethodSpec.Builder setter = MethodSpec.methodBuilder(param.name)
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(param)
@@ -134,7 +152,7 @@ class QLClassGenerator {
         return setter.addStatement("return \$N", param.name).build();
     }
 
-    static void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
+    void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
 
         ClassName map = ClassName.get("java.util", "Map");
         ClassName hashmap = ClassName.get("java.util", "HashMap");
@@ -157,14 +175,14 @@ class QLClassGenerator {
         methodSpecs.add(getVars.build());
     }
 
-    private static MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
+    private MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
         String packageName = "com.applidium.qlrequest.exceptions"
         ClassName exception = ClassName.get(packageName, "QLException");
 
         MethodSpec.Builder statement = MethodSpec.methodBuilder("query").
                 addModifiers(Modifier.PUBLIC)
                 .returns(String.class)
-                .addException(exception);
+                //.addException(exception);
 
         for (FieldSpec field : mandatoryFields) {
             statement.beginControlFlow("if(\$N == null)", field.name);
@@ -176,7 +194,70 @@ class QLClassGenerator {
         return statement.build()
     }
 
-    static TypeSpec generateResponse(QLQuery qlQuery, String fileName) {
-        return "";
+    TypeSpec generateResponse(String fileName, String packageName) {
+        MethodSpec.Builder constructor = MethodSpec
+                .constructorBuilder()
+                .addModifiers(Modifier.PUBLIC);
+        MethodSpec.Builder emptyConstructor = MethodSpec
+                .constructorBuilder()
+                .addModifiers(Modifier.PUBLIC);
+
+        createModels(fileName, packageName)
+    }
+
+    TypeSpec createModels(String className, String packageName) {
+
+        TypeSpec.Builder queryRespose = TypeSpec.classBuilder(className + "Response").addModifiers(Modifier.PUBLIC);
+
+        for (QLNode root : qlQuery.getQueryFields()) {
+            horizontalTreeReed(root, queryRespose, packageName)
+        }
+
+        return queryRespose.build();
+    }
+
+    void horizontalTreeReed(QLElement qlElement, TypeSpec.Builder parent, String packageName) {
+        String packageNameChild = packageName + "." + parent.build().name;
+
+        String elementName = qlElement.getAlias() == null ? qlElement.getName() : qlElement.getAlias();
+
+        if (qlElement instanceof QLNode) {
+            TypeSpec.Builder model = TypeSpec.classBuilder(elementName.capitalize())
+                    //.superclass(QLModel.class)
+                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+            generateFieldSetterGetter(parent, builderType(packageNameChild, elementName, qlElement.isList()), elementName);
+            for (QLElement child : qlElement.getChildren()) {
+                horizontalTreeReed(child, model, packageNameChild);
+            }
+            parent.addType(model.build());
+        } else if (qlElement instanceof QLLeaf) {
+            QLLeaf leaf = (QLLeaf) qlElement;
+            generateFieldSetterGetter(parent, getType(leaf.getType()), elementName);
+        } else if (qlElement instanceof QLFragmentNode) {
+            QLFragment fragment = qlQuery.findFragment(qlElement.getName());
+            for (QLElement child : fragment.getChildren()) {
+                horizontalTreeReed(child, parent, packageNameChild);
+            }
+        }
+    }
+
+    TypeName builderType(String packageName, final String modelName, boolean isList) {
+        final ClassName raw = rawBuilderType(modelName.capitalize(), packageName);
+        if (!isList) {
+            return raw;
+        }
+        ClassName list = ClassName.get("java.util", "List");
+        return ParameterizedTypeName.get(list, raw);
+    }
+
+    ClassName rawBuilderType(final String d, String packageName) {
+        return ClassName.get(packageName, d);
+    }
+
+    private void generateFieldSetterGetter(TypeSpec.Builder parent, TypeName type, String name) {
+        parent.addField(FieldSpec.builder(type, name, Modifier.PRIVATE).build());
+        ParameterSpec param = ParameterSpec.builder(type, name).build()
+        parent.addMethod(generateGetter(param));
+        parent.addMethod(generateSetter(param));
     }
 }

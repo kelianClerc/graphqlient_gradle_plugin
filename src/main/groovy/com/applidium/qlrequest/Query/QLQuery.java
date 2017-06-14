@@ -141,4 +141,13 @@ public class QLQuery {
         this.fragments.clear();
         this.fragments.addAll(fragments);
     }
+
+    public QLFragment findFragment(String fragmentName) {
+        for (QLFragment fragment : fragments) {
+            if (fragment.getName().equals(fragmentName)) {
+                return fragment;
+            }
+        }
+        return null;
+    }
 }

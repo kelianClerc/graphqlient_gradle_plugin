@@ -20,7 +20,7 @@ public class QLParser {
     private int elevation = 0;
     private QueryDelimiter delimiter;
     boolean isFragmentField;
-    private boolean shouldPopulateFragment;
+    private QLType typeBuffer;
 
     public static QLVariables parseVariables (String variables) {
         Map<String, Object> map = new HashMap<>();
@@ -201,23 +201,28 @@ public class QLParser {
 
         delimiter.analyze(toParse);
 
-        if (delimiter.isNextCloseCurly()) {
-            handleClosingCurly();
-        }
-        else if (delimiter.isNextSimpleField()) {
-            handleSimpleField(delimiter.endCarret);
-        }
-        else if (delimiter.isNextFieldWithParameters()) {
-            handleFieldWithParameters(delimiter.endCarret);
-        }
-        else if (delimiter.isNextNodeWithoutParams()) {
-            handleNodeWithoutParameter(delimiter.endCarret);
-        }
-        else if (delimiter.isNextLastField()) {
-            handleLastField(delimiter.endCarret);
-        }
-        else if (delimiter.isNextFragmentImport()) {
-            handleFragmentImport();
+        if (delimiter.isNextCommentary()) {
+            handleCommentary(delimiter.endCarret);
+        } else {
+            if (delimiter.isNextCloseCurly()) {
+                handleClosingCurly();
+            }
+            else if (delimiter.isNextSimpleField()) {
+                handleSimpleField(delimiter.endCarret);
+            }
+            else if (delimiter.isNextFieldWithParameters()) {
+                handleFieldWithParameters(delimiter.endCarret);
+            }
+            else if (delimiter.isNextNodeWithoutParams()) {
+                handleNodeWithoutParameter(delimiter.endCarret);
+            }
+            else if (delimiter.isNextLastField()) {
+                handleLastField(delimiter.endCarret);
+            }
+            else if (delimiter.isNextFragmentImport()) {
+                handleFragmentImport();
+            }
+            typeBuffer = null;
         }
     }
 
@@ -261,7 +266,7 @@ public class QLParser {
     private void handleSimpleField(int nextCommaIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCommaIndex));
         trimString(nextCommaIndex + 1);
-        currentPosition.get(elevation - 1).addChild(new QLLeaf(field));
+        currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
         processNextField();
     }
 
@@ -278,7 +283,7 @@ public class QLParser {
             trimString(1);
         }
         else {
-            currentPosition.get(elevation - 1).addChild(new QLLeaf(field));
+            currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
             if (toParse.charAt(0) == ',') {
                 trimString(1);
             }
@@ -297,8 +302,20 @@ public class QLParser {
 
     private void handleLastField(int endCarret) {
         QLElement field = createElementFromString(toParse.substring(0, endCarret));
-        currentPosition.get(elevation - 1).addChild(new QLLeaf(field));
+        currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
         trimString(endCarret);
+        processNextField();
+    }
+
+
+    private void handleCommentary(int endCommentary) {
+        String typeString = toParse.subSequence(0, endCommentary);
+        typeString = typeString.replace("#", "");
+        typeString = typeString.replace("-type-", "");
+        typeString = typeString.replace(";", "");
+        typeString = typeString.replaceAll(" ", "");
+        typeBuffer = parseType(typeString);
+        trimString(endCommentary + 1);
         processNextField();
     }
 
@@ -368,27 +385,32 @@ public class QLParser {
             element.setMandatory(false);
         }
         element.setName(unit[0].replace('$',""));
-        switch (unit[1]) {
+        element.type = parseType(unit[1])
+        return element;
+    }
+
+    private QLType parseType(String type) {
+        switch (type) {
             case "Boolean":
-                element.setType(QLType.BOOLEAN);
+                return QLType.BOOLEAN;
                 break;
             case "String":
-                element.setType(QLType.STRING);
+                return QLType.STRING;
                 break;
             case "Int":
-                element.setType(QLType.INT);
+                return QLType.INT;
                 break;
             case "ID":
-                element.setType(QLType.ID);
+                return QLType.ID;
                 break;
             case "Float":
-                element.setType(QLType.FLOAT);
+                return QLType.FLOAT;
                 break;
             default:
                 // TODO (kelianclerc) 23/5/17 error or enum
+                return QLType.STRING;
                 break;
         }
-        return element;
     }
 
     private String blockFetch(String globalString, String beginString) {
@@ -433,6 +455,8 @@ public class QLParser {
         private int nextCommaIndex;
         private int endCarret;
         private int nextFragmentImportIndex;
+        private int nextCommentary;
+        private int nextEndCommentary;
 
         public QueryDelimiter() {
         }
@@ -444,12 +468,16 @@ public class QLParser {
             nextCurlyIndex = toAnalyze.indexOf("{");
             nextCloseCurlyIndex = toAnalyze.indexOf("}");
             nextFragmentImportIndex = toAnalyze.indexOf("...");
+            nextCommentary = toAnalyze.indexOf("#-type-");
+            nextEndCommentary = toAnalyze.indexOf(";");
 
             nextCommaIndex = ifNegativeMakeGreat(nextCommaIndex);
             nextBraceIndex = ifNegativeMakeGreat(nextBraceIndex);
             nextCurlyIndex = ifNegativeMakeGreat(nextCurlyIndex);
             nextCloseBraceIndex = ifNegativeMakeGreat(nextCloseBraceIndex);
             nextCloseCurlyIndex = ifNegativeMakeGreat(nextCloseCurlyIndex);
+            nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
+            nextCommentary = ifNegativeMakeGreat(nextCommentary);
             nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
         }
 
@@ -516,12 +544,22 @@ public class QLParser {
                             Math.min(nextBraceIndex,
                                     Math.min(nextCloseBraceIndex,
                                             Math.min(nextCurlyIndex,
-                                                    Math.min(nextCloseCurlyIndex, nextFragmentImportIndex)
+                                                    Math.min(nextCommentary,
+                                                        Math.min(nextCloseCurlyIndex, nextFragmentImportIndex)
+                                                    )
                                             )
                                     )
                             )
                     )
             ) == target;
+        }
+
+        public boolean isNextCommentary() {
+            boolean b = isTheNextOccurance(nextCommentary);
+            if (b) {
+                endCarret = nextEndCommentary;
+            }
+            return b;
         }
     }
 

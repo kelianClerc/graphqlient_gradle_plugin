@@ -11,8 +11,10 @@ public class QLNode extends QLElement {
     private static final String OPENING_CHARACTER = "{";
     private static final String CLOSING_CHARACTER = "}";
     private static final String SEPARATION_SUBFIELD_CHARACTER = ",";
+
     private final ArrayList<QLElement> children = new ArrayList<>();
-    private Class<QLModel> associatedObject;
+    private Class<QLModel> type;
+    private boolean isList;
 
     public QLNode(QLElement element) {
         super(element);
@@ -30,7 +32,12 @@ public class QLNode extends QLElement {
         super(name, alias, params);
     }public QLNode(String name, String alias, Map<String, Object> params, Class<QLModel> nodeClass) {
         super(name, alias, params);
-        this.associatedObject = nodeClass;
+        this.type = nodeClass;
+    }
+
+    public QLNode(String name, String alias, Map<String, Object> parameters, boolean isList) {
+        super(name, alias, parameters);
+        this.isList = isList;
     }
 
     public void addChild(QLElement child) {
@@ -77,11 +84,19 @@ public class QLNode extends QLElement {
         stringBuilder.append(CLOSING_CHARACTER);
     }
 
-    public Class<QLModel> getAssociatedObject() {
-        return associatedObject;
+    public Class<QLModel> getType() {
+        return type;
     }
 
-    public void setAssociatedObject(Class<?> associatedObject) {
-        this.associatedObject = (Class<QLModel>) associatedObject;
+    public void setType(Class<?> type) {
+        this.type = (Class<QLModel>) type;
+    }
+
+    public boolean isList() {
+        return isList;
+    }
+
+    public void setList(boolean list) {
+        isList = list;
     }
 }
