@@ -11,6 +11,9 @@ public class QLTask extends DefaultTask {
     @Input
     def packageName
 
+    @Input
+    def variantDirName
+
     @InputFiles
     def settingFiles() {
         def files = []
@@ -23,7 +26,7 @@ public class QLTask extends DefaultTask {
 
     @OutputDirectory
     File outputDir() {
-        project.file("${project.buildDir}/generated/source/graphql")
+        project.file("${project.buildDir}/generated/source/graphql/${variantDirName}")
     }
 
     @OutputFile
