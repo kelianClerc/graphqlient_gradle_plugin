@@ -29,7 +29,7 @@ public class QLTask extends DefaultTask {
     @OutputFile
     File outputRequestFile(String name) {
         name = name.capitalize();
-        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}Request.java")
+        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}.java")
     }
 
     @OutputFile

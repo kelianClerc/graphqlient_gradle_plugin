@@ -26,7 +26,7 @@ class QLClassGenerator {
             className = qlQuery.name.capitalize();
         }
 
-        files << generateQuery(className)
+        files << generateQuery(className, packageName)
         files << generateResponse(className, packageName)
         return files;
     }
@@ -35,7 +35,7 @@ class QLClassGenerator {
         return text[0..<text.lastIndexOf('.')];
     }
 
-    TypeSpec generateQuery(String className) {
+    TypeSpec generateQuery(String className, String packageName) {
         MethodSpec.Builder constructor = MethodSpec
                 .constructorBuilder()
                 .addModifiers(Modifier.PUBLIC);
@@ -50,6 +50,13 @@ class QLClassGenerator {
         computeParams(fields, constructor, getterAndSetter, mandatoryFields)
         computeVarsMap(fields, getterAndSetter);
 
+        ClassName targetClassName = ClassName.get(packageName, className + "Response");
+
+        FieldSpec target = FieldSpec
+                .builder(Class.class, "target", Modifier.PUBLIC, Modifier.FINAL)
+                .initializer("\$T.class", targetClassName)
+                .build();
+
         FieldSpec.Builder queryField = FieldSpec
                 .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
         queryField.initializer("\$S", qlQuery.printQuery())
@@ -58,6 +65,7 @@ class QLClassGenerator {
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                 .addField(queryField.build())
                 .addFields(fields)
+                .addField(target)
                 .addMethod(constructor.build())
                 .addMethod(getQuery(mandatoryFields))
                 .addMethods(getterAndSetter);
