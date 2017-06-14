@@ -63,11 +63,33 @@ public class QLParser {
         fragments = new ArrayList<>();
         toUpdate = new ArrayList<>();
         parentOfToUpdate = new ArrayList<>();
+        toParse = cleanComments(toParse)
         toParse = toParse.replaceAll("[\n\r]", "");
         this.toParse = initialString = toParse;
     }
 
+    private static String cleanComments(String toClean) {
+        if (toClean.contains(System.getProperty("line.separator"))) {
+            String[] lines = toClean.split(System.getProperty("line.separator"));
+            for(int i = 0; i < lines.length; i++) {
+                String s = lines[i]
+                s = s.replaceAll(" ", "");
+                if (s.startsWith("#-type-")) {
+                    if (!s.endsWith(";")) {
+                        lines[i] += ";";
+                    }
+                } else if (s.startsWith("#")) {
+                    lines[i] = "";
+                }
+            }
+
+            return lines.join(System.getProperty("line.separator"));
+        }
+        return toClean;
+    }
+
     public void setToParse(String toParse) {
+        toParse = cleanComments(toParse)
         toParse = toParse.replaceAll("[\n\r]", "");
         this.toParse = initialString = toParse;
     }
