@@ -250,17 +250,48 @@ class QLClassGenerator {
                 .constructorBuilder()
                 .addModifiers(Modifier.PUBLIC);
 
-        TypeSpec.Builder queryRespose = TypeSpec
+        TypeSpec.Builder queryResponse = TypeSpec
                 .classBuilder(className + "Response")
                 .addModifiers(Modifier.PUBLIC)
                 .addMethod(emptyConstructor.build())
                 .addSuperinterface(qlResponse)
 
         for (QLNode root : qlQuery.getQueryFields()) {
-            horizontalTreeReed(root, queryRespose, packageName)
+            horizontalTreeReed(root, queryResponse, packageName)
+        }
+        queryResponse.addMethod(computeToString(queryResponse));
+
+        return queryResponse.build();
+    }
+
+    MethodSpec computeToString(TypeSpec.Builder typeSpec) {
+        ClassName stringClass = ClassName.get("java.lang", "String");
+        ClassName stringBuild = ClassName.get("java.lang", "StringBuilder");
+        TypeSpec target = typeSpec.build()
+        MethodSpec.Builder toString = MethodSpec.methodBuilder("toString")
+                .addAnnotation(Override.class)
+                .addModifiers(Modifier.PUBLIC)
+                .returns(stringClass)
+                .addStatement("\$T result = new \$T()", stringBuild, stringBuild)
+                .addStatement("result.append(\$S)", target.name)
+                .addStatement("result.append(\"{\\n\")", target.name)
+
+        int i = 0;
+        for (FieldSpec field : target.fieldSpecs) {
+            toString.addStatement("result.append(\"\\\"\")");
+            toString.addStatement("result.append(\$S)", field.name);
+            toString.addStatement("result.append(\"\\\"\")");
+            toString.addStatement("result.append(\":\")");
+            toString.addStatement("result.append(\$N.toString())", field.name);
+            if (i < target.fieldSpecs.size() - 1) {
+                toString.addStatement("result.append(\",\")")
+            }
         }
 
-        return queryRespose.build();
+        toString.addStatement("result.append(\"\\n}\")", target.name)
+        toString.addStatement("return result.toString()")
+
+        return toString.build()
     }
 
     void horizontalTreeReed(QLElement qlElement, TypeSpec.Builder parent, String packageName) {
@@ -277,6 +308,7 @@ class QLClassGenerator {
             for (QLElement child : qlElement.getChildren()) {
                 horizontalTreeReed(child, model, packageNameChild);
             }
+            model.addMethod(computeToString(model));
             parent.addType(model.build());
         } else if (qlElement instanceof QLLeaf) {
             QLLeaf leaf = (QLLeaf) qlElement;
