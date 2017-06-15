@@ -21,6 +21,8 @@ public class QLParser {
     private QueryDelimiter delimiter;
     boolean isFragmentField;
     private QLType typeBuffer;
+    private boolean isList;
+    private boolean shouldAvoidReset = false;
 
     public static QLVariables parseVariables (String variables) {
         Map<String, Object> map = new HashMap<>();
@@ -75,6 +77,10 @@ public class QLParser {
                 String s = lines[i]
                 s = s.replaceAll(" ", "");
                 if (s.startsWith("#-type-")) {
+                    if (!s.endsWith(";")) {
+                        lines[i] += ";";
+                    }
+                } else if (s.startsWith("#-list-")) {
                     if (!s.endsWith(";")) {
                         lines[i] += ";";
                     }
@@ -162,6 +168,7 @@ public class QLParser {
         substring = substring.replace(QUERY_KEYWORD, "");
         substring = substring.replaceAll(" ", "");
         QLElement element = createElementFromString(substring);
+        element.setList(isList);
         this.query = new QLQuery(
                 element.getName() != null && element.getName().length() > 0 ? element.getName() : null
         );
@@ -194,6 +201,13 @@ public class QLParser {
     }
 
     private void getRootElement() {
+        if (toParse.startsWith("#-list-")) {
+            def closing = toParse.indexOf(";")
+            isList = true
+            trimString(closing + 1)
+        }
+
+
         int endIndex = toParse.indexOf("{");
         if (endIndex < 0) {
             return;
@@ -203,6 +217,8 @@ public class QLParser {
         substring = substring.replaceAll(" ", "");
 
         QLElement element = createElementFromString(substring);
+        element.setList(isList);
+        isList = false;
         QLNode node = new QLNode(element);
         parseBody(endIndex, node);
     }
@@ -219,6 +235,13 @@ public class QLParser {
 
         if (toParse.length() <= 0) {
             return;
+        }
+
+        if (!shouldAvoidReset) {
+            typeBuffer = null;
+            isList = false;
+        } else {
+            shouldAvoidReset = false;
         }
 
         delimiter.analyze(toParse);
@@ -244,7 +267,6 @@ public class QLParser {
             else if (delimiter.isNextFragmentImport()) {
                 handleFragmentImport();
             }
-            typeBuffer = null;
         }
     }
 
@@ -255,6 +277,7 @@ public class QLParser {
 
 
         trimString(delimiter.endCarret + 1);
+
         processNextField();
     }
 
@@ -282,11 +305,13 @@ public class QLParser {
             }
         }
         trimString(1);
+
         processNextField();
     }
 
     private void handleSimpleField(int nextCommaIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCommaIndex));
+        field.setList(isList);
         trimString(nextCommaIndex + 1);
         currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
         processNextField();
@@ -294,6 +319,7 @@ public class QLParser {
 
     private void handleFieldWithParameters(int nextCloseBraceIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCloseBraceIndex + 1));
+        field.setList(isList);
         trimString(nextCloseBraceIndex + 1);
         if (toParse.charAt(0) == '{') {
             QLNode childNode = new QLNode(field);
@@ -310,34 +336,47 @@ public class QLParser {
                 trimString(1);
             }
         }
+
         processNextField();
     }
 
     private void handleNodeWithoutParameter(int nextCurlyIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCurlyIndex));
+        field.setList(isList);
         QLNode childNode = new QLNode(field);
         if (elevation > 0) {
             currentPosition.get(elevation - 1).addChild(childNode);
         }
+
         parseBody(nextCurlyIndex, childNode);
     }
 
     private void handleLastField(int endCarret) {
         QLElement field = createElementFromString(toParse.substring(0, endCarret));
+        field.setList(isList);
         currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
         trimString(endCarret);
+
         processNextField();
     }
 
 
     private void handleCommentary(int endCommentary) {
         String typeString = toParse.subSequence(0, endCommentary);
-        typeString = typeString.replace("#", "");
-        typeString = typeString.replace("-type-", "");
-        typeString = typeString.replace(";", "");
-        typeString = typeString.replaceAll(" ", "");
+        if(typeString.contains("#-type-")) {
+            typeString = typeString.replace("#", "");
+            typeString = typeString.replace("-type-", "");
+            typeString = typeString.replace(";", "");
+            typeString = typeString.replaceAll(" ", "");
+        } else if (typeString.contains("#-list-")) {
+            isList = true;
+        } else {
+            isList = false;
+        }
         typeBuffer = parseType(typeString);
+        shouldAvoidReset = true;
         trimString(endCommentary + 1);
+
         processNextField();
     }
 
@@ -490,7 +529,6 @@ public class QLParser {
             nextCurlyIndex = toAnalyze.indexOf("{");
             nextCloseCurlyIndex = toAnalyze.indexOf("}");
             nextFragmentImportIndex = toAnalyze.indexOf("...");
-            nextCommentary = toAnalyze.indexOf("#-type-");
             nextEndCommentary = toAnalyze.indexOf(";");
 
             nextCommaIndex = ifNegativeMakeGreat(nextCommaIndex);
@@ -499,7 +537,7 @@ public class QLParser {
             nextCloseBraceIndex = ifNegativeMakeGreat(nextCloseBraceIndex);
             nextCloseCurlyIndex = ifNegativeMakeGreat(nextCloseCurlyIndex);
             nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
-            nextCommentary = ifNegativeMakeGreat(nextCommentary);
+            nextCommentary = Math.min(ifNegativeMakeGreat(toAnalyze.indexOf("#-type-")),ifNegativeMakeGreat(toAnalyze.indexOf("#-list-")));
             nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
         }
 

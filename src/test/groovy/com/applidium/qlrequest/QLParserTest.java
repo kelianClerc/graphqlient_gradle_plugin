@@ -252,7 +252,7 @@ public class QLParserTest {
     public void fragmentDeclarationTest() throws Exception {
         QLParser parser = new QLParser();
 
-        parser.setToParse("query hello {user {aa, ab:bb, cc(aze: \"a\"), abc:dd(azerr:\"b\", zef:\"c\")} bib{dsf}}fragment test on User{name, email, posts{id}}");
+        parser.setToParse("query hello {#-list-;user {aa, ab:bb, #-list-;cc(aze: \"a\"), abc:dd(azerr:\"b\", zef:\"c\")} bib{dsf}}fragment test on User{name, email, posts{id}}");
         QLQuery query = parser.buildQuery();
         assertQueryIsComplete(query);
         assertEquals(query.getFragments().size(), 1);

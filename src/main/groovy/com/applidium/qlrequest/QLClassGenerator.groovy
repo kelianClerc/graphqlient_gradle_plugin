@@ -312,13 +312,22 @@ class QLClassGenerator {
             parent.addType(model.build());
         } else if (qlElement instanceof QLLeaf) {
             QLLeaf leaf = (QLLeaf) qlElement;
-            generateFieldSetterGetter(parent, getType(leaf.getType()), elementName);
+            generateFieldSetterGetter(parent, buildListType(leaf.getType(), leaf.isList()), elementName);
         } else if (qlElement instanceof QLFragmentNode) {
             QLFragment fragment = qlQuery.findFragment(qlElement.getName());
             for (QLElement child : fragment.getChildren()) {
                 horizontalTreeReed(child, parent, packageNameChild);
             }
         }
+    }
+
+    TypeName buildListType(QLType type, boolean isList) {
+        final ClassName raw = getType(type);
+        if (!isList) {
+            return raw;
+        }
+        ClassName list = ClassName.get("java.util", "List");
+        return ParameterizedTypeName.get(list, raw);
     }
 
     TypeName builderType(String packageName, final String modelName, boolean isList) {
