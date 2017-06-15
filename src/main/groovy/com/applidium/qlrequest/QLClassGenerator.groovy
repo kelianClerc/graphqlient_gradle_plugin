@@ -13,6 +13,7 @@ class QLClassGenerator {
 
     private final String PACKAGE = "com.applidium.graphqlient";
     QLQuery qlQuery;
+    private final List<String> alreadyUsedClassNames = new ArrayList<>();
 
     def generateSource(File file, String packageName) {
         String fileContent = file.text;
@@ -257,6 +258,7 @@ class QLClassGenerator {
                 .addSuperinterface(qlResponse)
 
         for (QLNode root : qlQuery.getQueryFields()) {
+            alreadyUsedClassNames.clear();
             horizontalTreeReed(root, queryResponse, packageName)
         }
         queryResponse.addMethod(computeToString(queryResponse));
@@ -301,10 +303,15 @@ class QLClassGenerator {
         ClassName qlModel = ClassName.get(PACKAGE + ".model", "QLModel")
 
         if (qlElement instanceof QLNode) {
-            TypeSpec.Builder model = TypeSpec.classBuilder(elementName.capitalize())
+            String typeName = elementName;
+            if (alreadyUsedClassNames.contains(qlElement.name)) {
+                typeName = "sub" + elementName.capitalize();
+            }
+            alreadyUsedClassNames.add(typeName);
+            TypeSpec.Builder model = TypeSpec.classBuilder(typeName.capitalize())
                     .addSuperinterface(qlModel)
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
-            generateFieldSetterGetter(parent, builderType(packageNameChild, elementName, qlElement.isList()), elementName);
+            generateFieldSetterGetter(parent, builderType(packageNameChild, typeName, qlElement.isList()), elementName);
             for (QLElement child : qlElement.getChildren()) {
                 horizontalTreeReed(child, model, packageNameChild);
             }
