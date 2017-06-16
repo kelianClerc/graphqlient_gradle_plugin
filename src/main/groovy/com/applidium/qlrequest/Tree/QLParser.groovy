@@ -258,22 +258,35 @@ public class QLParser {
         } else {
             if (delimiter.isNextCloseCurly()) {
                 handleClosingCurly();
-            }
-            else if (delimiter.isNextSimpleField()) {
+            } else if (delimiter.isNextSimpleField()) {
                 handleSimpleField(delimiter.endCarret);
-            }
-            else if (delimiter.isNextFieldWithParameters()) {
+            } else if (delimiter.isNextFieldWithParameters()) {
                 handleFieldWithParameters(delimiter.endCarret);
-            }
-            else if (delimiter.isNextNodeWithoutParams()) {
+            } else if (delimiter.isNextNodeWithoutParams()) {
                 handleNodeWithoutParameter(delimiter.endCarret);
-            }
-            else if (delimiter.isNextLastField()) {
+            } else if (delimiter.isNextLastField()) {
                 handleLastField(delimiter.endCarret);
-            }
-            else if (delimiter.isNextFragmentImport()) {
+            } else if (delimiter.isNextFragmentImport()) {
                 handleFragmentImport();
             }
+        }
+    }
+
+
+    QLElement computeDirectives(QLElement qlElement) {
+        String includeArtifact = "@include(if:"
+        String skipArtifact = "@skip(if:"
+        int closeIncludeIndex = toParse.indexOf(")");
+        if (toParse.startsWith(includeArtifact)) {
+            qlElement.setInclude(toParse.substring(includeArtifact.length(), closeIncludeIndex))
+            trimString(closeIncludeIndex + 1);
+            handleDirective(qlElement);
+        } else if (toParse.startsWith(skipArtifact)) {
+            qlElement.setSkip(toParse.substring(skipArtifact.length(), closeIncludeIndex))
+            trimString(closeIncludeIndex + 1);
+            handleDirective(qlElement);
+        } else {
+            return qlElement;
         }
     }
 
@@ -529,6 +542,7 @@ public class QLParser {
         private int nextFragmentImportIndex;
         private int nextCommentary;
         private int nextEndCommentary;
+        private int nextDirective
 
         public QueryDelimiter() {
         }
@@ -541,6 +555,7 @@ public class QLParser {
             nextCloseCurlyIndex = toAnalyze.indexOf("}");
             nextFragmentImportIndex = toAnalyze.indexOf("...");
             nextEndCommentary = toAnalyze.indexOf(";");
+            nextDirective = toAnalyze.indexOf("@");
 
             nextCommaIndex = ifNegativeMakeGreat(nextCommaIndex);
             nextBraceIndex = ifNegativeMakeGreat(nextBraceIndex);
@@ -550,6 +565,7 @@ public class QLParser {
             nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
             nextCommentary = Math.min(ifNegativeMakeGreat(toAnalyze.indexOf("#-type-")),ifNegativeMakeGreat(toAnalyze.indexOf("#-list-")));
             nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
+            nextDirective = ifNegativeMakeGreat(nextDirective)
         }
 
 
@@ -608,6 +624,14 @@ public class QLParser {
             return b;
         }
 
+        public boolean isNextDirective() {
+            boolean b = isTheNextOccurance(nextDirective);
+            if (b) {
+                endCarret = nextCloseBraceIndex;
+            }
+            return b;
+        }
+
         private boolean isTheNextOccurance(int target) {
             return Math.min(
                     target,
@@ -616,7 +640,9 @@ public class QLParser {
                                     Math.min(nextCloseBraceIndex,
                                             Math.min(nextCurlyIndex,
                                                     Math.min(nextCommentary,
-                                                        Math.min(nextCloseCurlyIndex, nextFragmentImportIndex)
+                                                            //Math.min(nextDirective,
+                                                                Math.min(nextCloseCurlyIndex, nextFragmentImportIndex)
+                                                            //)
                                                     )
                                             )
                                     )
