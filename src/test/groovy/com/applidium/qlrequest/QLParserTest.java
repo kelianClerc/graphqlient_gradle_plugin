@@ -98,7 +98,7 @@ public class QLParserTest {
         assertEquals(query2.getQueryFields().get(0).getName(), "user");
         assertEquals(query2.getQueryFields().get(0).getAlias(), "test");
 
-        parser.setToParse("query hello {test : user(id:\"12f\") {}");
+        parser.setToParse("query hello {test : user(id:\"12f\") {}}");
         QLQuery query3 = parser.buildQuery();
         assertEquals(query3.getName(), "hello");
         assertEquals(query3.getQueryFields().size(), 1);
@@ -108,7 +108,7 @@ public class QLParserTest {
         assertTrue(query3.getQueryFields().get(0).getParameters().containsKey("id"));
         assertEquals(query3.getQueryFields().get(0).getParameters().get("id"), "12f");
 
-        parser.setToParse("query hello($try: Boolean!) {test : user(id:$try) {}");
+        parser.setToParse("query hello($try: Boolean!) {test : user(id:$try) {}}");
         QLQuery query4 = parser.buildQuery();
         assertEquals(query4.getName(), "hello");
 
@@ -136,7 +136,7 @@ public class QLParserTest {
         assertEquals(query.getName(), "hello");
         assertEquals(query.getQueryFields().size(), 2);
         assertThat(query.getQueryFields().get(0), instanceOf(QLNode.class));
-        List<QLElement> children = query.getQueryFields().get(0).getChildren();
+        List<QLElement> children = ((QLNode)query.getQueryFields().get(0)).getChildren();
         assertEquals(children.size(), 4);
         QLElement firstChild = children.get(0);
         QLElement secondChild = children.get(1);
@@ -167,8 +167,8 @@ public class QLParserTest {
 
         assertThat(query.getQueryFields().get(1), instanceOf(QLNode.class));
         assertEquals(query.getQueryFields().get(1).getName(), "bib");
-        assertEquals(query.getQueryFields().get(1).getChildren().size(), 1);
-        assertEquals(query.getQueryFields().get(1).getChildren().get(0).getName(), "dsf");
+        assertEquals(((QLNode)query.getQueryFields().get(1)).getChildren().size(), 1);
+        assertEquals(((QLNode)query.getQueryFields().get(1)).getChildren().get(0).getName(), "dsf");
     }
 
     @Test
@@ -179,7 +179,7 @@ public class QLParserTest {
         QLQuery query = parser.buildQuery();
         assertEquals(query.getName(), "hello");
         assertEquals(query.getQueryFields().size(), 1);
-        List<QLElement> children = query.getQueryFields().get(0).getChildren();
+        List<QLElement> children = ((QLNode)query.getQueryFields().get(0)).getChildren();
         assertEquals(children.size(), 2);
         assertEquals(children.get(0).getName(), "aa");
         assertThat(children.get(0), instanceOf(QLLeaf.class));
@@ -206,7 +206,7 @@ public class QLParserTest {
         QLQuery query = parser.buildQuery();
         assertEquals(query.getName(), null);
         assertEquals(query.getQueryFields().size(), 1);
-        List<QLElement> children = query.getQueryFields().get(0).getChildren();
+        List<QLElement> children = ((QLNode)query.getQueryFields().get(0)).getChildren();
         assertEquals(children.size(), 2);
         assertEquals(children.get(0).getName(), "aa");
         assertThat(children.get(0), instanceOf(QLLeaf.class));
@@ -231,13 +231,13 @@ public class QLParserTest {
     public void queryParameterTest() throws Exception {
 
         QLParser parser = new QLParser();
-        parser.setToParse("query hello($try: Boolean!, $try2:String, $try3:Int, $try4:Float, $try5:ID!) {user(id:$try) {}");
+        parser.setToParse("query hello($try: Boolean!, $try2:String, $try3:Int, $try4:Float, $try5:ID!) {user(id:$try) {}}");
         QLQuery query = parser.buildQuery();
         assertEquals(query.getName(), "hello");
         assertEquals(query.getParameters().getParams().size(), 5);
         assertEquals(query.getQueryFields().size(), 1);
 
-        QLNode node = query.getQueryFields().get(0);
+        QLElement node = query.getQueryFields().get(0);
         assertEquals(node.getName(), "user");
         assertEquals(node.getParameters().size(), 1);
         assertTrue(node.getParameters().containsKey("id"));
@@ -337,7 +337,7 @@ public class QLParserTest {
     public void testMultipleFragmentImport() throws Exception {
         QLParser parser = new QLParser();
 
-        parser.setToParse("query hello {user {...test, ...test1}}fragment test on User{name}fragment test1 on User{alias : name1, email1(size: 2), posts1{id1}}");
+        parser.setToParse("query hello {user {...test, ...test1}, testze}fragment test on User{name}fragment test1 on User{alias : name1, email1(size: 2), posts1{id1}}");
         // TODO (kelianclerc) 31/5/17 test this
         QLQuery query = parser.buildQuery();
 
@@ -349,13 +349,18 @@ public class QLParserTest {
         QLFragment fragment1 = query.getFragments().get(0);
         assertEquals(fragment1.getName(), "test");
         assertEquals(fragment1.getChildren().size(), 1);
-        assertEquals(query.getQueryFields().size(), 1);
+        System.out.println(query.getQueryFields().get(0).print());
+        System.out.println(query.getQueryFields().get(1).print());
+        assertEquals(query.getQueryFields().size(), 2);
         assertEquals(query.getName(), "hello");
-        QLNode node = query.getQueryFields().get(0);
+        QLElement node = query.getQueryFields().get(0);
         assertEquals(node.getName(), "user");
         assertEquals(node.getParameters().size(), 0);
-        assertEquals(node.getChildren().size(), 2);
-        assertThat(node.getChildren().get(0), instanceOf(QLFragmentNode.class));
-        assertThat(node.getChildren().get(1), instanceOf(QLFragmentNode.class));
+        assertEquals(((QLNode)node).getChildren().size(), 2);
+        assertThat(((QLNode)node).getChildren().get(0), instanceOf(QLFragmentNode.class));
+        assertThat(((QLNode)node).getChildren().get(1), instanceOf(QLFragmentNode.class));
+        QLElement staticField = query.getQueryFields().get(1);
+        assertThat(staticField, instanceOf(QLLeaf.class));
+        assertEquals(staticField.getName(), "testze");
     }
 }

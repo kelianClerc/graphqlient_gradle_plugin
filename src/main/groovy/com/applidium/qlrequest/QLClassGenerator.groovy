@@ -257,7 +257,7 @@ class QLClassGenerator {
                 .addMethod(emptyConstructor.build())
                 .addSuperinterface(qlResponse)
 
-        for (QLNode root : qlQuery.getQueryFields()) {
+        for (QLElement root : qlQuery.getQueryFields()) {
             alreadyUsedClassNames.clear();
             horizontalTreeReed(root, queryResponse, packageName)
         }
@@ -301,7 +301,6 @@ class QLClassGenerator {
 
         String elementName = qlElement.getAlias() == null ? qlElement.getName() : qlElement.getAlias();
         ClassName qlModel = ClassName.get(PACKAGE + ".model", "QLModel")
-
         if (qlElement instanceof QLNode) {
             String typeName = elementName;
             if (alreadyUsedClassNames.contains(qlElement.name)) {
@@ -323,7 +322,7 @@ class QLClassGenerator {
         } else if (qlElement instanceof QLFragmentNode) {
             QLFragment fragment = qlQuery.findFragment(qlElement.getName());
             for (QLElement child : fragment.getChildren()) {
-                horizontalTreeReed(child, parent, packageNameChild);
+                horizontalTreeReed(child, parent, packageName);
             }
         }
     }

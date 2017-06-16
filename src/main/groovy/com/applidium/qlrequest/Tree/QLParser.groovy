@@ -188,7 +188,10 @@ public class QLParser {
         isFragmentField = false;
         initTreeBulding();
         getHeader();
-        getRootElement();
+
+        QLNode childrePlaceHolder = new QLNode("tmp");
+        parseBody(-1, childrePlaceHolder);
+        //getRootElement();
     }
 
     private void parseFragmentHeader(String substring) throws QLParserException {
@@ -233,6 +236,10 @@ public class QLParser {
 
     private void processNextField() {
 
+        if (toParse.startsWith(",")) {
+            toParse = toParse.substring(1);
+        }
+
         if (toParse.length() <= 0) {
             return;
         }
@@ -275,9 +282,7 @@ public class QLParser {
         String fragmentName = toParse.substring(begin + 3, delimiter.endCarret);
         currentPosition.get(elevation - 1).addChild(new QLFragmentNode(fragmentName));
 
-
-        trimString(delimiter.endCarret + 1);
-
+        trimString(delimiter.endCarret);
         processNextField();
     }
 
@@ -300,7 +305,7 @@ public class QLParser {
             if (isFragmentField) {
                 fragments.get(fragments.size() - 1).setChildren(currentPosition.get(0).getChildren());
             } else {
-                query.append(currentPosition.get(elevation));
+                query.setQueryFields(currentPosition.get(elevation).getChildren());
                 currentPosition.clear();
             }
         }

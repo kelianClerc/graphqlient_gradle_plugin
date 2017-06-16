@@ -17,6 +17,7 @@ import com.applidium.qlrequest.Tree.QLTreeBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -49,12 +50,12 @@ public class QLQueryTest {
         QLQuery query = new QLQuery();
         query.append(rootNode);
 
-        List<QLNode> getRootElement = query.getQueryFields();
+        List<QLElement> getRootElement = query.getQueryFields();
         assertEquals(1, 1);
         assertEquals(getRootElement.size(), 1);
 
-        assertEquals(getRootElement.get(0).getElementInfo(), "1");
-        List<QLElement> rootChildren = getRootElement.get(0).getChildren();
+        assertEquals(((QLNode)getRootElement.get(0)).getElementInfo(), "1");
+        List<QLElement> rootChildren = ((QLNode)getRootElement.get(0)).getChildren();
         assertEquals(rootChildren.size(), 2);
         assertEquals(rootChildren.get(0).print(), "2");
         assertThat(rootChildren.get(1), instanceOf(QLNode.class));
@@ -93,7 +94,9 @@ public class QLQueryTest {
 
 
         QLQuery query1 = new QLQuery(aRandomName, Arrays.asList(param, param2));
-        query1.setQueryFields(Arrays.asList(rootNode));
+        List<QLElement> fields = new ArrayList<>();
+        fields.add(rootNode);
+        query1.setQueryFields(fields);
         query1.setName(aRandomName2);
         assertEquals(query1.printQuery(), "query " + aRandomName2 +"($test:String!,$test2:Int){1{2,3{4}}}");
 
@@ -104,7 +107,9 @@ public class QLQueryTest {
         node.setParameters(map);
         node.addAllChild(rootNode.getChildren());
         QLQuery query2 = new QLQuery(aRandomName, Arrays.asList(param, param2));
-        query2.setQueryFields(Arrays.asList(node));
+        fields.clear();
+        fields.add(node);
+        query2.setQueryFields(fields);
         query2.setName(aRandomName2);
         assertEquals(query2.printQuery(), "query " + aRandomName2 +"($test:String!,$test2:Int){1(id:$test){2,3{4}}}");
 

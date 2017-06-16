@@ -1,6 +1,6 @@
 package com.applidium.qlrequest.Query;
 
-import com.applidium.qlrequest.Tree.QLNode;
+import com.applidium.qlrequest.Tree.QLElement;
 import com.applidium.qlrequest.exceptions.QLException;
 
 import java.util.ArrayList;
@@ -18,7 +18,7 @@ public class QLQuery {
     private final QLParameters parameters = new QLParameters();
     private final QLVariables variables = new QLVariables();
     // A request must not be anonymous if it has variables.
-    private final List<QLNode> queryFields = new ArrayList<>();
+    private final List<QLElement> queryFields = new ArrayList<QLElement>();
 
     public QLQuery() {
     }
@@ -33,7 +33,7 @@ public class QLQuery {
         this.parameters.setParams(parameters);
     }
 
-    public void append(QLNode element) {
+    public void append(QLElement element) {
         if (element != null) {
             queryFields.add(element);
         }
@@ -60,8 +60,8 @@ public class QLQuery {
     public String printQuery() {
         StringBuilder stringBuilder = new StringBuilder();
         appendHeader(stringBuilder);
-        for (QLNode node : queryFields) {
-            stringBuilder.append(node.print());
+        for (QLElement element : queryFields) {
+            stringBuilder.append(element.print());
         }
         appendEnd(stringBuilder);
         for (QLFragment fragment : fragments) {
@@ -86,14 +86,14 @@ public class QLQuery {
         stringBuilder.append(")");
     }
 
-    public void setQueryFields(List<QLNode> queryFields){
+    public void setQueryFields(List<QLElement> queryFields){
         this.queryFields.clear();
         if (queryFields != null) {
             this.queryFields.addAll(queryFields);
         }
     }
 
-    public List<QLNode> getQueryFields() {
+    public List<QLElement> getQueryFields() {
         return queryFields;
     }
 
