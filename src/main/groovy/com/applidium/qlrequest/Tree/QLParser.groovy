@@ -444,14 +444,20 @@ public class QLParser {
 
     private QLVariablesElement parseVariableType(String[] unit) {
         QLVariablesElement element = new QLVariablesElement();
+        int endTypeIndex = unit[1].length();
         if (unit[1].contains("!")) {
+            endTypeIndex = unit[1].indexOf("!");
             element.setMandatory(true);
             unit[1] = unit[1].replace("!", "");
         } else {
             element.setMandatory(false);
         }
+        if (unit[1].contains("=")) {
+            endTypeIndex = Math.min(unit[1].indexOf("="), endTypeIndex);
+            element.setDefaultValue(unit[1].substring(unit[1].indexOf("=") + 1));
+        }
         element.setName(unit[0].replace('$',""));
-        element.type = parseType(unit[1])
+        element.type = parseType(unit[1].substring(0, endTypeIndex))
         return element;
     }
 

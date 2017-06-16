@@ -363,4 +363,16 @@ public class QLParserTest {
         assertThat(staticField, instanceOf(QLLeaf.class));
         assertEquals(staticField.getName(), "testze");
     }
+
+    @Test
+    public void defaultValueTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello($name : String! = \"Kelian\") { name }");
+        QLQuery qlQuery = parser.buildQuery();
+
+        assertEquals(qlQuery.getParameters().getParams().get(0).getDefaultValue(), "\"Kelian\"");
+        assertEquals(qlQuery.getParameters().getParams().get(0).isMandatory(), true);
+        assertEquals(qlQuery.getParameters().getParams().get(0).getType(), QLType.STRING);
+        assertEquals(qlQuery.getParameters().getParams().get(0).getName(), "name");
+    }
 }
