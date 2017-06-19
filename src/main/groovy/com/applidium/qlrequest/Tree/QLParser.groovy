@@ -24,35 +24,6 @@ public class QLParser {
     private boolean isList;
     private boolean shouldAvoidReset = false;
 
-    public static QLVariables parseVariables (String variables) {
-        Map<String, Object> map = new HashMap<>();
-        if (variables.length() > 2) {
-            variables = variables.replace("[\n\r]", "");
-            variables = variables.replace(" ", "");
-            variables = variables.substring(1, variables.length()-1);
-            String[] keyValue = variables.split(",");
-            for(String pair : keyValue) {
-                String[] pairElement = pair.split(":");
-                String toAnalyze = pairElement[1];
-                if (isInteger(toAnalyze)) {
-                    map.put(pairElement[0], Integer.valueOf(toAnalyze));
-                } else if (toAnalyze.startsWith("\"") && toAnalyze.endsWith("\"")){
-                    map.put(pairElement[0], toAnalyze);
-                } else if (toAnalyze.equals("true") || toAnalyze.equals("false")) {
-                    map.put(pairElement[0], Boolean.valueOf(toAnalyze));
-                } else {
-                    try {
-                        map.put(pairElement[0], Double.parseDouble(toAnalyze));
-                    } catch (NumberFormatException e) {
-                        map.put(pairElement[0], toAnalyze);
-                    }
-                }
-            }
-        }
-
-        return new QLVariables(map);
-    }
-
     public QLParser() {
         delimiter = new QueryDelimiter();
         fragments = new ArrayList<>();
