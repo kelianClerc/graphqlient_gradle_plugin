@@ -302,28 +302,45 @@ class QLClassGenerator {
         String elementName = qlElement.getAlias() == null ? qlElement.getName() : qlElement.getAlias();
         ClassName qlModel = ClassName.get(PACKAGE + ".model", "QLModel")
         if (qlElement instanceof QLNode) {
-            String typeName = elementName;
-            if (alreadyUsedClassNames.contains(qlElement.name)) {
-                typeName = "sub" + elementName.capitalize();
-            }
-            alreadyUsedClassNames.add(typeName);
-            TypeSpec.Builder model = TypeSpec.classBuilder(typeName.capitalize())
-                    .addSuperinterface(qlModel)
-                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
-            generateFieldSetterGetter(parent, builderType(packageNameChild, typeName, qlElement.isList()), elementName);
-            for (QLElement child : qlElement.getChildren()) {
-                horizontalTreeReed(child, model, packageNameChild);
-            }
-            model.addMethod(computeToString(model));
-            parent.addType(model.build());
+            convertNode(elementName, qlElement, qlModel, parent, packageNameChild)
         } else if (qlElement instanceof QLLeaf) {
-            QLLeaf leaf = (QLLeaf) qlElement;
-            generateFieldSetterGetter(parent, buildListType(leaf.getType(), leaf.isList()), elementName);
+            convertLeaf(qlElement, parent, elementName)
         } else if (qlElement instanceof QLFragmentNode) {
-            QLFragment fragment = qlQuery.findFragment(qlElement.getName());
-            for (QLElement child : fragment.getChildren()) {
-                horizontalTreeReed(child, parent, packageName);
-            }
+            convertFragment(qlElement, parent, packageName)
+        }
+    }
+
+    private void convertNode(String elementName, QLNode qlElement, ClassName qlModel, TypeSpec.Builder parent, String packageNameChild) {
+        String typeName = handleUniquenessModelName(elementName, qlElement)
+        TypeSpec.Builder model = TypeSpec.classBuilder(typeName.capitalize())
+                .addSuperinterface(qlModel)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+        generateFieldSetterGetter(parent, builderType(packageNameChild, typeName, qlElement.isList()), elementName);
+        for (QLElement child : qlElement.getChildren()) {
+            horizontalTreeReed(child, model, packageNameChild);
+        }
+        model.addMethod(computeToString(model));
+        parent.addType(model.build());
+    }
+
+    private String handleUniquenessModelName(String elementName, QLNode qlElement) {
+        String typeName = elementName;
+        if (alreadyUsedClassNames.contains(qlElement.name)) {
+            typeName = "sub" + elementName.capitalize();
+        }
+        alreadyUsedClassNames.add(typeName);
+        return typeName
+    }
+
+    private void convertLeaf(QLLeaf qlElement, TypeSpec.Builder parent, String elementName) {
+        QLLeaf leaf = (QLLeaf) qlElement;
+        generateFieldSetterGetter(parent, buildListType(leaf.getType(), leaf.isList()), elementName);
+    }
+
+    private void convertFragment(QLLeaf qlElement, TypeSpec.Builder parent, String packageName) {
+        QLFragment fragment = qlQuery.findFragment(qlElement.getName());
+        for (QLElement child : fragment.getChildren()) {
+            horizontalTreeReed(child, parent, packageName);
         }
     }
 
