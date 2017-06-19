@@ -191,7 +191,6 @@ public class QLParser {
 
         QLNode childrePlaceHolder = new QLNode("tmp");
         parseBody(-1, childrePlaceHolder);
-        //getRootElement();
     }
 
     private void parseFragmentHeader(String substring) throws QLParserException {
@@ -201,29 +200,6 @@ public class QLParser {
             throw new QLParserException("Not a valid fragment header : should be : \"framgent [name] on [target]\", found : \"" + substring + "\"");
         }
         fragments.add(new QLFragment(fragmentHeader[1], fragmentHeader[3]));
-    }
-
-    private void getRootElement() {
-        if (toParse.startsWith("#-list-")) {
-            def closing = toParse.indexOf(";")
-            isList = true
-            trimString(closing + 1)
-        }
-
-
-        int endIndex = toParse.indexOf("{");
-        if (endIndex < 0) {
-            return;
-        }
-
-        String substring = toParse.substring(0, endIndex);
-        substring = substring.replaceAll(" ", "");
-
-        QLElement element = createElementFromString(substring);
-        element.setList(isList);
-        isList = false;
-        QLNode node = new QLNode(element);
-        parseBody(endIndex, node);
     }
 
     private void parseBody(int endIndex, QLNode node) {
@@ -258,12 +234,10 @@ public class QLParser {
         } else {
             if (delimiter.isNextCloseCurly()) {
                 handleClosingCurly();
-            } else if (delimiter.isNextSimpleField()) {
+            } else if (delimiter.isNextLeaf()) {
                 handleSimpleField(delimiter.endCarret);
-            } else if (delimiter.isNextFieldWithParameters()) {
-                handleFieldWithParameters(delimiter.endCarret);
-            } else if (delimiter.isNextNodeWithoutParams()) {
-                handleNodeWithoutParameter(delimiter.endCarret);
+            } else if (delimiter.isNextNode()) {
+                handleNode(delimiter.endCarret);
             } else if (delimiter.isNextLastField()) {
                 handleLastField(delimiter.endCarret);
             } else if (delimiter.isNextFragmentImport()) {
@@ -273,40 +247,23 @@ public class QLParser {
     }
 
 
-    QLElement computeDirectives(QLElement qlElement) {
-        String includeArtifact = "@include(if:"
-        String skipArtifact = "@skip(if:"
-        int closeIncludeIndex = toParse.indexOf(")");
-        if (toParse.startsWith(includeArtifact)) {
-            qlElement.setInclude(toParse.substring(includeArtifact.length(), closeIncludeIndex))
-            trimString(closeIncludeIndex + 1);
-            handleDirective(qlElement);
-        } else if (toParse.startsWith(skipArtifact)) {
-            qlElement.setSkip(toParse.substring(skipArtifact.length(), closeIncludeIndex))
-            trimString(closeIncludeIndex + 1);
-            handleDirective(qlElement);
+    private void handleCommentary(int endCommentary) {
+        String typeString = toParse.subSequence(0, endCommentary);
+        if(typeString.contains("#-type-")) {
+            typeString = typeString.replace("#", "");
+            typeString = typeString.replace("-type-", "");
+            typeString = typeString.replace(";", "");
+            typeString = typeString.replaceAll(" ", "");
+        } else if (typeString.contains("#-list-")) {
+            isList = true;
         } else {
-            return qlElement;
+            isList = false;
         }
-    }
+        typeBuffer = parseType(typeString);
+        shouldAvoidReset = true;
+        trimString(endCommentary + 1);
 
-    private void handleFragmentImport() {
-        int begin = toParse.indexOf("...");
-        String fragmentName = toParse.substring(begin + 3, delimiter.endCarret);
-        currentPosition.get(elevation - 1).addChild(new QLFragmentNode(fragmentName));
-
-        trimString(delimiter.endCarret);
         processNextField();
-    }
-
-    private List<QLElement> findFragmentByName(String fragmentName) {
-        fragmentName = fragmentName.replace("...", "");
-        for (QLFragment frag: fragments) {
-            if (frag.getName().equals(fragmentName)) {
-                return frag.getChildren();
-            }
-        }
-        return Collections.emptyList();
     }
 
     private void handleClosingCurly() {
@@ -330,37 +287,56 @@ public class QLParser {
     private void handleSimpleField(int nextCommaIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCommaIndex));
         field.setList(isList);
+        field = checkIfDirective(field);
         trimString(nextCommaIndex + 1);
         currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
         processNextField();
     }
 
-    private void handleFieldWithParameters(int nextCloseBraceIndex) {
-        QLElement field = createElementFromString(toParse.substring(0, nextCloseBraceIndex + 1));
-        field.setList(isList);
-        trimString(nextCloseBraceIndex + 1);
-        if (toParse.charAt(0) == '{') {
-            QLNode childNode = new QLNode(field);
-            if (elevation > 0) {
-                currentPosition.get(elevation - 1).addChild(childNode);
-            }
-            currentPosition.put(elevation, childNode);
-            elevation++;
-            trimString(1);
+    QLElement checkIfDirective(QLElement element) {
+        Pattern pattern = Pattern.compile("@include|@skip");
+        Matcher matcher = pattern.matcher(toParse);
+        if (matcher.find()) {
+            element = computeDirectives(element);
         }
-        else {
-            currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
-            if (toParse.charAt(0) == ',') {
-                trimString(1);
-            }
+        return element;
+    }
+
+    QLElement computeDirectives(QLElement qlElement) {
+        String includeArtifact = "@include(if:"
+        String skipArtifact = "@skip(if:"
+        String currentToParse = toParse;
+        if (currentToParse.contains(includeArtifact)) {
+            int startOfInclude = currentToParse.indexOf(includeArtifact)
+            int closeIncludeIndex = currentToParse.indexOf(")", startOfInclude);
+            String variableName = currentToParse.substring(startOfInclude + includeArtifact.length(), closeIncludeIndex)
+            qlElement.setInclude(variableName)
+        }
+        if (currentToParse.contains(skipArtifact)) {
+            int startOfSkip = currentToParse.indexOf(skipArtifact)
+            int closeSkipIndex = currentToParse.indexOf(")", startOfSkip);
+            String variableName = currentToParse.substring(currentToParse.indexOf(skipArtifact) + skipArtifact.length(), closeSkipIndex)
+            qlElement.setSkip(variableName)
         }
 
+
+        return qlElement;
+    }
+
+
+    private void handleFragmentImport() {
+        int begin = toParse.indexOf("...");
+        String fragmentName = toParse.substring(begin + 3, delimiter.endCarret);
+        currentPosition.get(elevation - 1).addChild(new QLFragmentNode(fragmentName));
+
+        trimString(delimiter.endCarret);
         processNextField();
     }
 
-    private void handleNodeWithoutParameter(int nextCurlyIndex) {
+    private void handleNode(int nextCurlyIndex) {
         QLElement field = createElementFromString(toParse.substring(0, nextCurlyIndex));
         field.setList(isList);
+        field = checkIfDirective(field);
         QLNode childNode = new QLNode(field);
         if (elevation > 0) {
             currentPosition.get(elevation - 1).addChild(childNode);
@@ -369,39 +345,22 @@ public class QLParser {
         parseBody(nextCurlyIndex, childNode);
     }
 
+
     private void handleLastField(int endCarret) {
         QLElement field = createElementFromString(toParse.substring(0, endCarret));
         field.setList(isList);
+        field = checkIfDirective(field);
         currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
         trimString(endCarret);
 
         processNextField();
     }
 
-
-    private void handleCommentary(int endCommentary) {
-        String typeString = toParse.subSequence(0, endCommentary);
-        if(typeString.contains("#-type-")) {
-            typeString = typeString.replace("#", "");
-            typeString = typeString.replace("-type-", "");
-            typeString = typeString.replace(";", "");
-            typeString = typeString.replaceAll(" ", "");
-        } else if (typeString.contains("#-list-")) {
-            isList = true;
-        } else {
-            isList = false;
-        }
-        typeBuffer = parseType(typeString);
-        shouldAvoidReset = true;
-        trimString(endCommentary + 1);
-
-        processNextField();
-    }
-
     private QLElement createElementFromString(String substring) {
         substring.replaceAll(" ", "");
+        Pattern pattern = Pattern.compile("(?<!@include|@skip)\\(");
         if (substring.length() > 0) {
-            String[] stringList = substring.split("[(]");
+            String[] stringList = substring.split(pattern.pattern());
 
             QLElement element;
             element = getFieldName(stringList[0]);
@@ -417,6 +376,14 @@ public class QLParser {
     private QLElement getFieldName(String s) {
         QLElement element;
         String name = s;
+
+
+        Pattern pattern = Pattern.compile("@include|@skip");
+        Matcher matcher = pattern.matcher(name);
+        if (matcher.find()) {
+            name = name.substring(0, matcher.start())
+        }
+
         if (name.indexOf(":")>0) {
             String[] aliasName = name.split("[:]");
             element = new QLElement(aliasName[1]);
@@ -428,7 +395,11 @@ public class QLParser {
     }
 
     private Map<String, Object> getParameters(String stringParameters) {
-        stringParameters = stringParameters.replace(")", "");
+        Pattern patternSkip = Pattern.compile("@skip\\((.[^)]*)\\)");
+        Pattern patternInclude = Pattern.compile("@include\\((.[^)]*)\\)");
+        stringParameters = stringParameters.replaceAll(patternSkip.pattern(), "");
+        stringParameters = stringParameters.replaceAll(patternInclude.pattern(), "");
+        stringParameters = stringParameters.replaceAll("[)]", "");
         Map<String, Object> params = new HashMap<>();
         String[] stringParametersSplit = stringParameters.split("[,]");
         for (String param : stringParametersSplit) {
@@ -535,37 +506,34 @@ public class QLParser {
         public static final int MAX_VALUE = 1010100202;
         private int nextCloseCurlyIndex;
         private int nextCurlyIndex;
-        private int nextCloseBraceIndex;
-        private int nextBraceIndex;
         private int nextCommaIndex;
         private int endCarret;
         private int nextFragmentImportIndex;
         private int nextCommentary;
         private int nextEndCommentary;
-        private int nextDirective
 
         public QueryDelimiter() {
         }
 
         public void analyze(String toAnalyze) {
-            nextCommaIndex = toAnalyze.indexOf(",");
-            nextBraceIndex = toAnalyze.indexOf("(");
-            nextCloseBraceIndex = toAnalyze.indexOf(")");
+            Pattern pattern = Pattern.compile(",(?![^(]*\\))");
+            Matcher matcher = pattern.matcher(toAnalyze);
+            if (matcher.find()) {
+                nextCommaIndex = matcher.start();
+            } else {
+                nextCommaIndex = -1;
+            }
             nextCurlyIndex = toAnalyze.indexOf("{");
             nextCloseCurlyIndex = toAnalyze.indexOf("}");
             nextFragmentImportIndex = toAnalyze.indexOf("...");
             nextEndCommentary = toAnalyze.indexOf(";");
-            nextDirective = toAnalyze.indexOf("@");
 
             nextCommaIndex = ifNegativeMakeGreat(nextCommaIndex);
-            nextBraceIndex = ifNegativeMakeGreat(nextBraceIndex);
             nextCurlyIndex = ifNegativeMakeGreat(nextCurlyIndex);
-            nextCloseBraceIndex = ifNegativeMakeGreat(nextCloseBraceIndex);
             nextCloseCurlyIndex = ifNegativeMakeGreat(nextCloseCurlyIndex);
-            nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
             nextCommentary = Math.min(ifNegativeMakeGreat(toAnalyze.indexOf("#-type-")),ifNegativeMakeGreat(toAnalyze.indexOf("#-list-")));
+            nextEndCommentary = ifNegativeMakeGreat(nextEndCommentary);
             nextFragmentImportIndex = ifNegativeMakeGreat(nextFragmentImportIndex);
-            nextDirective = ifNegativeMakeGreat(nextDirective)
         }
 
 
@@ -584,7 +552,7 @@ public class QLParser {
             return b;
         }
 
-        public boolean isNextSimpleField() {
+        public boolean isNextLeaf() {
             boolean b = isTheNextOccurance(nextCommaIndex);
             if (b) {
                 endCarret = nextCommaIndex;
@@ -592,15 +560,7 @@ public class QLParser {
             return b;
         }
 
-        public boolean isNextFieldWithParameters() {
-            boolean b = isTheNextOccurance(nextBraceIndex);
-            if (b) {
-                endCarret = nextCloseBraceIndex;
-            }
-            return b;
-        }
-
-        public boolean isNextNodeWithoutParams() {
+        public boolean isNextNode() {
             boolean b = isTheNextOccurance(nextCurlyIndex);
             if (b) {
                 endCarret = nextCurlyIndex;
@@ -624,10 +584,10 @@ public class QLParser {
             return b;
         }
 
-        public boolean isNextDirective() {
-            boolean b = isTheNextOccurance(nextDirective);
+        public boolean isNextCommentary() {
+            boolean b = isTheNextOccurance(nextCommentary);
             if (b) {
-                endCarret = nextCloseBraceIndex;
+                endCarret = nextEndCommentary;
             }
             return b;
         }
@@ -636,27 +596,13 @@ public class QLParser {
             return Math.min(
                     target,
                     Math.min(nextCommaIndex,
-                            Math.min(nextBraceIndex,
-                                    Math.min(nextCloseBraceIndex,
-                                            Math.min(nextCurlyIndex,
-                                                    Math.min(nextCommentary,
-                                                            //Math.min(nextDirective,
-                                                                Math.min(nextCloseCurlyIndex, nextFragmentImportIndex)
-                                                            //)
-                                                    )
-                                            )
+                            Math.min(nextCurlyIndex,
+                                    Math.min(nextCommentary,
+                                                Math.min(nextCloseCurlyIndex, nextFragmentImportIndex)
                                     )
                             )
                     )
             ) == target;
-        }
-
-        public boolean isNextCommentary() {
-            boolean b = isTheNextOccurance(nextCommentary);
-            if (b) {
-                endCarret = nextEndCommentary;
-            }
-            return b;
         }
     }
 

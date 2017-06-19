@@ -344,6 +344,7 @@ public class QLParserTest {
         assertEquals(query.getFragments().size(), 2);
         QLFragment fragment = query.getFragments().get(1);
         assertEquals(fragment.getName(), "test1");
+
         assertEquals(fragment.getTargetObject(), "User");
         assertEquals(fragment.getChildren().size(), 3);
         QLFragment fragment1 = query.getFragments().get(0);
@@ -374,5 +375,71 @@ public class QLParserTest {
         assertEquals(qlQuery.getParameters().getParams().get(0).isMandatory(), true);
         assertEquals(qlQuery.getParameters().getParams().get(0).getType(), QLType.STRING);
         assertEquals(qlQuery.getParameters().getParams().get(0).getName(), "name");
+    }
+
+    @Test
+    public void directiveTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello{ name @skip(if: $name)}");
+        QLQuery qlQuery = parser.buildQuery();
+
+        assertEquals(qlQuery.getQueryFields().get(0).getSkip(), "$name");
+        assertEquals(qlQuery.getQueryFields().get(0).getInclude(), null);
+        assertEquals(qlQuery.getQueryFields().get(0).getName(), "name");
+        assertEquals(qlQuery.getQueryFields().get(0).getAlias(),null);
+        assertEquals(qlQuery.getQueryFields().get(0).getParameters().size(), 0);
+        assertEquals(qlQuery.getQueryFields().get(0).isList(), false);
+    }
+
+    @Test
+    public void directiveAliasTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello{ test:name @include(if: $name)}");
+        QLQuery qlQuery = parser.buildQuery();
+
+        assertEquals(qlQuery.getQueryFields().get(0).getInclude(), "$name");
+        assertEquals(qlQuery.getQueryFields().get(0).getSkip(), null);
+        assertEquals(qlQuery.getQueryFields().get(0).getName(), "name");
+        assertEquals(qlQuery.getQueryFields().get(0).getAlias(),"test");
+        assertEquals(qlQuery.getQueryFields().get(0).getParameters().size(), 0);
+        assertEquals(qlQuery.getQueryFields().get(0).isList(), false);
+    }
+
+    @Test
+    public void directiveParamTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello{ test:name (id:3) @include(if: $name){azdad}}");
+        QLQuery qlQuery = parser.buildQuery();
+
+        assertEquals(qlQuery.getQueryFields().get(0).getInclude(), "$name");
+        assertEquals(qlQuery.getQueryFields().get(0).getSkip(), null);
+        assertEquals(qlQuery.getQueryFields().get(0).getName(), "name");
+        assertEquals(qlQuery.getQueryFields().get(0).getAlias(),"test");
+        assertEquals(qlQuery.getQueryFields().get(0).getParameters().size(), 1);
+        assertEquals(qlQuery.getQueryFields().get(0).getParameters().get("id"), 3);
+        assertEquals(qlQuery.getQueryFields().get(0).isList(), false);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode node = (QLNode) qlQuery.getQueryFields().get(0);
+        assertEquals(node.getChildren().size(),1);
+
+    }
+
+    @Test
+    public void directiveBothTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello{ test:name @include(if: $name) @skip(if: $name2) (id:3) {azdad}}");
+        QLQuery qlQuery = parser.buildQuery();
+
+        assertEquals(qlQuery.getQueryFields().get(0).getInclude(), "$name");
+        assertEquals(qlQuery.getQueryFields().get(0).getSkip(), "$name2");
+        assertEquals(qlQuery.getQueryFields().get(0).getName(), "name");
+        assertEquals(qlQuery.getQueryFields().get(0).getAlias(),"test");
+        assertEquals(qlQuery.getQueryFields().get(0).getParameters().size(), 1);
+        assertEquals(qlQuery.getQueryFields().get(0).getParameters().get("id"), 3);
+        assertEquals(qlQuery.getQueryFields().get(0).isList(), false);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode node = (QLNode) qlQuery.getQueryFields().get(0);
+        assertEquals(node.getChildren().size(),1);
+
     }
 }

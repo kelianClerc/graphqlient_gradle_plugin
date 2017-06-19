@@ -21,6 +21,8 @@ public class QLElement {
             this.parameters.clear();
             this.parameters.putAll(element.getParameters());
             this.isList = element.isList;
+            this.skip = element.skip;
+            this.include = element.include;
         }
     }
 
@@ -76,6 +78,16 @@ public class QLElement {
             i++;
         }
         result += ")";
+        if (include != null) {
+            result += "@include(if:";
+            result += include;
+            result += ")";
+        }
+        if (skip != null) {
+            result += "@skip(if:";
+            result += include;
+            result += ")";
+        }
         return result;
     }
 
