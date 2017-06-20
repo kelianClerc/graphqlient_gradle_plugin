@@ -9,6 +9,7 @@ import java.util.regex.Pattern
 public class QLParser {
 
     public static final String QUERY_KEYWORD = "query";
+    public static final String MUTATION_KEYWORD = "mutation";
     public static final String FRAGMENT_KEYWORD = "fragment";
     private String initialString;
     private String toParse;
@@ -106,7 +107,9 @@ public class QLParser {
         }
 
         String substring = toParse.substring(0, endIndex);
-        if (substring.startsWith(QUERY_KEYWORD)) {
+
+        Pattern pattern = Pattern.compile("(" + QUERY_KEYWORD + "| " + MUTATION_KEYWORD + ")");
+        if (substring.startsWith(pattern.pattern())) {
             parseQueryHeader(substring);
         } else if (substring.startsWith(FRAGMENT_KEYWORD)) {
             parseFragmentHeader(substring);
@@ -114,13 +117,22 @@ public class QLParser {
         else if (substring.length() == 0) {
             parseQueryHeader("");
         }
-
         trimString(endIndex + 1);
         this.toParse = toParse.replaceAll(" ", "");
     }
 
     private void parseQueryHeader(String substring) {
-        substring = substring.replace(QUERY_KEYWORD, "");
+        boolean isMutation;
+
+        if (substring.startsWith(QUERY_KEYWORD)) {
+            substring = substring.replace(QUERY_KEYWORD, "");
+            isMutation = false;
+        } else if (substring.startsWith(MUTATION_KEYWORD)) {
+            substring = substring.replace(MUTATION_KEYWORD, "");
+            isMutation = true;
+        }
+        this.query.isMutation(isMutation);
+
         substring = substring.replaceAll(" ", "");
         QLElement element = QLHandler.createElementFromString(substring);
         this.query = new QLQuery(

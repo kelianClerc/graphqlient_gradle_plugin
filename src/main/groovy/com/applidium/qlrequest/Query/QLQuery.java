@@ -19,6 +19,7 @@ public class QLQuery {
     private final QLVariables variables = new QLVariables();
     // A request must not be anonymous if it has variables.
     private final List<QLElement> queryFields = new ArrayList<QLElement>();
+    private boolean isMutation;
 
     public QLQuery() {
     }
@@ -149,5 +150,13 @@ public class QLQuery {
             }
         }
         return null;
+    }
+
+    public boolean isMutation() {
+        return this.isMutation;
+    }
+
+    public void isMutation(boolean isMutation) {
+        this.isMutation = isMutation;
     }
 }
