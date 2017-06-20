@@ -472,4 +472,16 @@ public class QLParserTest {
         assertEquals(node.getTarget(), "User");
         assertEquals(node.getChildren().size(), 3);
     }
+
+    @Test
+    public void complexeFragmentTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("{users{...userInfo}}fragment userInfo on User {id,name}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getQueryFields().size(), 1);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode qlNode = (QLNode) qlQuery.getQueryFields().get(0);
+        assertThat(((QLNode) qlQuery.getQueryFields().get(0)).getChildren().get(0), instanceOf(QLFragmentNode.class));
+
+    }
 }

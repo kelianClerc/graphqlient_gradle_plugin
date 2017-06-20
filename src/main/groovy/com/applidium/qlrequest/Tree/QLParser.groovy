@@ -120,7 +120,7 @@ public class QLParser {
     }
 
     private void parseQueryHeader(String substring) {
-        boolean isMutation;
+        boolean isMutation = false;
 
         if (substring.indexOf(QUERY_KEYWORD) >= 0) {
             substring = substring.replace(QUERY_KEYWORD, "");
