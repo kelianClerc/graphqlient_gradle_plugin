@@ -11,6 +11,8 @@ public class QLElement {
     private final Map<String, Object> parameters = new HashMap<>();
     private String alias;
     private boolean isList;
+    private String include;
+    private String skip;
 
     public QLElement(QLElement element) {
         if (element != null) {
@@ -19,6 +21,8 @@ public class QLElement {
             this.parameters.clear();
             this.parameters.putAll(element.getParameters());
             this.isList = element.isList;
+            this.skip = element.skip;
+            this.include = element.include;
         }
     }
 
@@ -74,6 +78,16 @@ public class QLElement {
             i++;
         }
         result += ")";
+        if (include != null) {
+            result += "@include(if:";
+            result += include;
+            result += ")";
+        }
+        if (skip != null) {
+            result += "@skip(if:";
+            result += include;
+            result += ")";
+        }
         return result;
     }
 
@@ -120,5 +134,21 @@ public class QLElement {
 
     public void setList(boolean list) {
         isList = list;
+    }
+
+    public String getInclude() {
+        return include;
+    }
+
+    public void setInclude(String include) {
+        this.include = include;
+    }
+
+    public String getSkip() {
+        return skip;
+    }
+
+    public void setSkip(String skip) {
+        this.skip = skip;
     }
 }
