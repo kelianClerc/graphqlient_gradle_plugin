@@ -357,9 +357,15 @@ class QLClassGenerator {
     }
 
     private void convertFragment(QLFragmentNode qlElement, TypeSpec.Builder parent, String packageName) {
-        QLFragment fragment = qlQuery.findFragment(qlElement.getName());
-        for (QLElement child : fragment.getChildren()) {
-            horizontalTreeReed(child, parent, packageName);
+        if (qlElement.isInlineFragment()) {
+            for (QLElement child: qlElement.getChildren()) {
+                horizontalTreeReed(child, parent, packageName)
+            }
+        } else {
+            QLFragment fragment = qlQuery.findFragment(qlElement.getName());
+            for (QLElement child : fragment.getChildren()) {
+                horizontalTreeReed(child, parent, packageName);
+            }
         }
     }
 
