@@ -107,9 +107,7 @@ public class QLParser {
         }
 
         String substring = toParse.substring(0, endIndex);
-
-        Pattern pattern = Pattern.compile("(" + QUERY_KEYWORD + "| " + MUTATION_KEYWORD + ")");
-        if (substring.startsWith(pattern.pattern())) {
+        if (substring.startsWith(QUERY_KEYWORD) || substring.startsWith(MUTATION_KEYWORD)) {
             parseQueryHeader(substring);
         } else if (substring.startsWith(FRAGMENT_KEYWORD)) {
             parseFragmentHeader(substring);
@@ -124,21 +122,21 @@ public class QLParser {
     private void parseQueryHeader(String substring) {
         boolean isMutation;
 
-        if (substring.startsWith(QUERY_KEYWORD)) {
+        if (substring.indexOf(QUERY_KEYWORD) >= 0) {
             substring = substring.replace(QUERY_KEYWORD, "");
             isMutation = false;
-        } else if (substring.startsWith(MUTATION_KEYWORD)) {
+        } else if (substring.indexOf(MUTATION_KEYWORD) >= 0) {
             substring = substring.replace(MUTATION_KEYWORD, "");
             isMutation = true;
         }
-        this.query.isMutation(isMutation);
 
         substring = substring.replaceAll(" ", "");
         QLElement element = QLHandler.createElementFromString(substring);
-        this.query = new QLQuery(
+        String queryName =
                 element.getName() != null && element.getName().length() > 0 ? element.getName() : null
-        );
+        this.query = new QLQuery(queryName);
         query.setFragments(fragments);
+        this.query.isMutation(isMutation);
         List<QLVariablesElement> params = new ArrayList<>();
         for (String key: element.getParameters().keySet()) {
             Object o = element.getParameters().get(key);
