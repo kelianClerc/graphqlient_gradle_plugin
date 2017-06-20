@@ -440,6 +440,36 @@ public class QLParserTest {
         assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
         QLNode node = (QLNode) qlQuery.getQueryFields().get(0);
         assertEquals(node.getChildren().size(),1);
+    }
 
+    @Test
+    public void inlineFragmentTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello{ ... on User {name}}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getName(), "hello");
+        assertEquals(qlQuery.getQueryFields().size(), 1);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLFragmentNode.class));
+        QLFragmentNode node = (QLFragmentNode) qlQuery.getQueryFields().get(0);
+
+        assertEquals(node.getName(), "");
+        assertEquals(node.isInlineFragment(), true);
+        assertEquals(node.getTarget(), "User");
+        assertEquals(node.getChildren().size(), 1);
+    }
+
+    @Test
+    public void complexeInlineFragmentTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query hello{zg, zer{zef}, ... on User {name @skip(if:yo), aa {bb, cc{dd}}, test}}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getName(), "hello");
+        assertEquals(qlQuery.getQueryFields().size(), 3);
+        assertThat(qlQuery.getQueryFields().get(2), instanceOf(QLFragmentNode.class));
+        QLFragmentNode node = (QLFragmentNode) qlQuery.getQueryFields().get(2);
+        assertEquals(node.getName(), "");
+        assertEquals(node.isInlineFragment(), true);
+        assertEquals(node.getTarget(), "User");
+        assertEquals(node.getChildren().size(), 3);
     }
 }
