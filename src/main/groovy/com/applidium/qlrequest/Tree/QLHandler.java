@@ -190,9 +190,8 @@ public class QLHandler {
 
     void handleFragment() throws QLParserException {
         int begin = toParse.indexOf("...");
-        int endBlock = toParse.indexOf("}");
         System.out.println(toParse);
-        String fragmentName = toParse.substring(begin + 3, endBlock);
+        String fragmentName = toParse.substring(begin + 3, delimiter.endCarret);
         currentPosition.get(elevation - 1).addChild(new QLFragmentNode(fragmentName));
 
         trimString(delimiter.endCarret);
