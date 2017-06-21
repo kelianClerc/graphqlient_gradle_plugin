@@ -56,25 +56,17 @@ class QLClassGenerator {
         addTarget(fields, getterAndSetter, packageName, className);
         TypeSpec.Builder query;
 
+        addQuery(fields, getterAndSetter, mandatoryFields, "query");
+        ClassName qlRequest = ClassName.get(PACKAGE, "QLRequest");
+
         if (qlQuery.isMutation()) {
-
-            addQuery(fields, getterAndSetter, mandatoryFields, "mutation")
-
-            ClassName qlMutation = ClassName.get(PACKAGE, "QLMutation");
-
             query = TypeSpec.classBuilder(className + "Mutation")
                     .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                     .addMethod(constructor.build())
                     .addFields(fields)
                     .addMethods(getterAndSetter)
-                    .addSuperinterface(qlMutation)
-
+                    .addSuperinterface(qlRequest)
         } else {
-
-            addQuery(fields, getterAndSetter, mandatoryFields, "query");
-
-            ClassName qlRequest = ClassName.get(PACKAGE, "QLRequest");
-
             query = TypeSpec.classBuilder(className + "Request")
                     .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                     .addMethod(constructor.build())

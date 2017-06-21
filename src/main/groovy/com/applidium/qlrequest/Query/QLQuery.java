@@ -10,6 +10,7 @@ import java.util.Map;
 public class QLQuery {
 
     private static final String QUERY_KEYWORD = "query";
+    private static final String MUTATION_KEYWORD = "mutation";
     private static final String QUERY_OPENING_CHARACTER = "{";
     private static final String QUERY_CLOSING_CHARACTER = "}";
 
@@ -73,7 +74,11 @@ public class QLQuery {
 
     private void appendHeader(StringBuilder stringBuilder) {
         if (name != null) {
-            stringBuilder.append(QUERY_KEYWORD + " " + name);
+            if (isMutation) {
+                stringBuilder.append(MUTATION_KEYWORD + " " + name);
+            } else {
+                stringBuilder.append(QUERY_KEYWORD + " " + name);
+            }
         }
         if (parameters != null && !parameters.isEmpty()) {
             appendQueryParams(stringBuilder);
