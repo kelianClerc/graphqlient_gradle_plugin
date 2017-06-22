@@ -66,7 +66,11 @@ public class QLVariablesElement {
     public String print() {
         String res = "";
         res += printVariableName() + ":";
-        res += type.toString();
+        if (type == QLType.ENUM) {
+            res += enumName;
+        } else {
+            res += type.toString();
+        }
         if (isMandatory) {
             res += MANDATORY_CHARACTER;
         }

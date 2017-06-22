@@ -18,11 +18,17 @@ class QLClassGenerator {
 
     def generateSource(File file, String packageName) {
         String fileContent = file.text;
+        this.packageName = packageName;
+        def files = []
+
+        if (file.getName().endsWith(".qlenum")) {
+            files << generateEnum(file.getName(), fileContent);
+            return files;
+        }
+
         QLParser parser = new QLParser();
         parser.setToParse(fileContent);
         this.qlQuery = parser.buildQuery();
-        def files = []
-        this.packageName = packageName;
 
         String className;
         if (qlQuery.name == null || qlQuery.name.equals("")) {
@@ -34,6 +40,19 @@ class QLClassGenerator {
         files << generateQuery(className)
         files << generateResponse(className)
         return files;
+    }
+
+    TypeSpec generateEnum(String fileName, String fileContent) {
+        TypeSpec.Builder enumFile = TypeSpec.enumBuilder(removeFileExtension(fileName).capitalize() + "QLEnum");
+        enumFile.addModifiers(Modifier.PUBLIC)
+        fileContent = fileContent.replace(" ", "");
+        fileContent = fileContent.replace(System.getProperty("line.separator"), "");
+        String[] enumFields = fileContent.split(",");
+        for(String field : enumFields) {
+            enumFile.addEnumConstant(field);
+        }
+
+        return enumFile.build();
     }
 
     String removeFileExtension(String text) {
