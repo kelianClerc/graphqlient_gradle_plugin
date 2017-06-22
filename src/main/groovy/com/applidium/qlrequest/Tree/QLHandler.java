@@ -17,6 +17,7 @@ public class QLHandler {
     private int elevation = 0;
     private QueryDelimiter delimiter;
     private QLType typeBuffer;
+    private String enumTypeBuffer;
     private boolean isList;
     private boolean shouldAvoidReset = false;
     private boolean isFragmentField;
@@ -60,6 +61,7 @@ public class QLHandler {
         if (!shouldAvoidReset) {
             typeBuffer = null;
             isList = false;
+            enumTypeBuffer = null;
         } else {
             shouldAvoidReset = false;
         }
@@ -97,6 +99,9 @@ public class QLHandler {
             isList = false;
         }
         typeBuffer = parseType(typeString);
+        if (typeBuffer == QLType.ENUM) {
+            enumTypeBuffer = typeString;
+        }
         shouldAvoidReset = true;
         trimString(endCommentary + 1);
 
@@ -118,7 +123,11 @@ public class QLHandler {
         field.setList(isList);
         field = checkIfDirective(field);
         trimString(nextCommaIndex + 1);
-        currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
+        QLLeaf child = new QLLeaf(field, typeBuffer);
+        if (typeBuffer == QLType.ENUM) {
+            child.setEnumName(enumTypeBuffer);
+        }
+        currentPosition.get(elevation - 1).addChild(child);
         processNextField();
     }
 
@@ -215,7 +224,11 @@ public class QLHandler {
         QLElement field = createElementFromString(toParse.substring(0, endCarret));
         field.setList(isList);
         field = checkIfDirective(field);
-        currentPosition.get(elevation - 1).addChild(new QLLeaf(field, typeBuffer));
+        QLLeaf child = new QLLeaf(field, typeBuffer);
+        if (typeBuffer == QLType.ENUM) {
+            child.setEnumName(enumTypeBuffer);
+        }
+        currentPosition.get(elevation - 1).addChild(child);
         trimString(endCarret);
 
         processNextField();
@@ -306,7 +319,11 @@ public class QLHandler {
             element.setDefaultValue(unit[1].substring(unit[1].indexOf("=") + 1));
         }
         element.setName(unit[0].replace("$",""));
-        element.setType(parseType(unit[1].substring(0, endTypeIndex)));
+        QLType type = parseType(unit[1].substring(0, endTypeIndex));
+        if (type == QLType.ENUM) {
+            element.setEnumName(unit[1].substring(0, endTypeIndex));
+        }
+        element.setType(type);
         return element;
     }
 
@@ -323,8 +340,7 @@ public class QLHandler {
             case "Float":
                 return QLType.FLOAT;
             default:
-                // TODO (kelianclerc) 23/5/17 error or enum
-                return QLType.STRING;
+                return QLType.ENUM;
         }
     }
 

@@ -7,6 +7,7 @@ import com.squareup.javapoet.TypeSpec;
 import org.junit.Test;
 
 import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
 
 public class QLClassGeneratorTest {
     @Test
@@ -19,10 +20,11 @@ public class QLClassGeneratorTest {
         qlQuery = parser.buildQuery();
         QLClassGenerator classGenerator = new QLClassGenerator();
         classGenerator.setQlQuery(qlQuery);
-        TypeSpec method = classGenerator.generateQuery("Test", "com.applidium.qlrequest");
+        classGenerator.setPackage("com.applidium.qlrequest");
+        TypeSpec method = classGenerator.generateQuery("Test");
         testRequest(method);
 
-        TypeSpec response = classGenerator.generateResponse("Test", "com.applidium.qlrequest");
+        TypeSpec response = classGenerator.generateResponse("Test");
 
         assertEquals(method.name, "TestRequest");
     }
@@ -30,5 +32,20 @@ public class QLClassGeneratorTest {
     private void testRequest(TypeSpec request) {
         assertEquals(request.name, "TestRequest");
         assertEquals(request.fieldSpecs.size(), 2);
+    }
+
+    @Test
+    public void generateEnumTest() throws Exception {
+        QLQuery qlQuery;
+        String query = "AA,BB,CC";
+
+        QLClassGenerator classGenerator = new QLClassGenerator();
+        classGenerator.setPackage("com.applidium.qlrequest");
+        TypeSpec method = classGenerator.generateEnum("test.qlenum", "CT,TERRO,SPEC");
+
+        assertEquals(method.name, "TestQLEnum");
+        assertTrue(method.enumConstants.containsKey("CT"));
+        assertTrue(method.enumConstants.containsKey("TERRO"));
+        assertTrue(method.enumConstants.containsKey("SPEC"));
     }
 }
