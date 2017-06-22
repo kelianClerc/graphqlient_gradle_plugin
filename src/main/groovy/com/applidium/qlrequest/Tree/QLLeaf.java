@@ -7,6 +7,7 @@ import java.util.Map;
 public class QLLeaf extends QLElement {
 
     private QLType type;
+    private String enumName;
 
     public QLLeaf(String name) {
         super(name);
@@ -36,5 +37,13 @@ public class QLLeaf extends QLElement {
 
     public void setType(QLType type) {
         this.type = type;
+    }
+
+    public String getEnumName() {
+        return enumName;
+    }
+
+    public void setEnumName(String enumName) {
+        this.enumName = enumName;
     }
 }

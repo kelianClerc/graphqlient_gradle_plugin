@@ -5,6 +5,7 @@ public class QLVariablesElement {
     public static final String VARIABLE_CHARACTER = "$";
     private String name;
     private QLType type;
+    private String enumName;
     private boolean isMandatory;
     private Object defaultValue;
 
@@ -81,5 +82,13 @@ public class QLVariablesElement {
 
     public void setDefaultValue(Object defaultValue) {
         this.defaultValue = defaultValue;
+    }
+
+    public String getEnumName() {
+        return enumName;
+    }
+
+    public void setEnumName(String enumName) {
+        this.enumName = enumName;
     }
 }
