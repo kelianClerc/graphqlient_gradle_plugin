@@ -30,13 +30,7 @@ public class QLTask extends DefaultTask {
     }
 
     @OutputFile
-    File outputRequestFile(String name) {
-        name = name.capitalize();
-        project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}.java")
-    }
-
-    @OutputFile
-    File outputResponseFile(String name) {
+    File outputFile(String name) {
         name = name.capitalize();
         project.file("${outputDir().absolutePath}/${packageName.replace('.', '/')}/${name}.java")
     }
@@ -55,25 +49,17 @@ public class QLTask extends DefaultTask {
             println f;
             QLClassGenerator classGenerator = new QLClassGenerator();
             def qlquery = classGenerator.generateSource(f, packageName)
-            String fileName;
-            TypeSpec source = qlquery.get(0)
-            def outputFile = outputRequestFile(source.name)
-            if (!outputFile.isFile()) {
-                outputFile.delete()
-                outputFile.parentFile.mkdirs()
+
+            qlquery.collect() {
+                TypeSpec source = it
+                def outputFile = outputFile(source.name)
+                if (!outputFile.isFile()) {
+                    outputFile.delete()
+                    outputFile.parentFile.mkdirs()
+                }
+
+                outputFile.text = "package ${packageName};\n" + source.toString()
             }
-
-            outputFile.text = "package ${packageName};\n" + source.toString()
-
-
-            TypeSpec source1 = qlquery.get(1)
-            def outputFile1 = outputResponseFile(source1.name)
-            if (!outputFile1.isFile()) {
-                outputFile1.delete()
-                outputFile1.parentFile.mkdirs()
-            }
-
-            outputFile1.text = "package ${packageName};\n" + source1.toString()
         }
     }
 
