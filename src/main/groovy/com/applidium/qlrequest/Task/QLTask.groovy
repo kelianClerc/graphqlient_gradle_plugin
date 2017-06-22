@@ -48,6 +48,9 @@ public class QLTask extends DefaultTask {
     }
 
     public void computeQuery(File f) {
+        if(!isFileSupported(f.getName())) {
+            return;
+        }
         if (f) {
             println f;
             QLClassGenerator classGenerator = new QLClassGenerator();
@@ -72,6 +75,10 @@ public class QLTask extends DefaultTask {
 
             outputFile1.text = "package ${packageName};\n" + source1.toString()
         }
+    }
+
+    boolean isFileSupported(String fileName) {
+        return fileName.endsWith(".graphql") || fileName.endsWith(".qlenum");
     }
 
     public void createRequest() {
