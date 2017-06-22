@@ -14,6 +14,7 @@ class QLClassGenerator {
     private final String PACKAGE = "com.applidium.graphqlient";
     QLQuery qlQuery;
     private final List<String> alreadyUsedClassNames = new ArrayList<>();
+    private String packageName;
 
     def generateSource(File file, String packageName) {
         String fileContent = file.text;
@@ -21,6 +22,7 @@ class QLClassGenerator {
         parser.setToParse(fileContent);
         this.qlQuery = parser.buildQuery();
         def files = []
+        this.packageName = packageName;
 
         String className;
         if (qlQuery.name == null || qlQuery.name.equals("")) {
@@ -29,8 +31,8 @@ class QLClassGenerator {
             className = qlQuery.name.capitalize();
         }
 
-        files << generateQuery(className, packageName)
-        files << generateResponse(className, packageName)
+        files << generateQuery(className)
+        files << generateResponse(className)
         return files;
     }
 
@@ -38,7 +40,7 @@ class QLClassGenerator {
         return text[0..<text.lastIndexOf('.')];
     }
 
-    TypeSpec generateQuery(String className, String packageName) {
+    TypeSpec generateQuery(String className) {
         MethodSpec.Builder constructor = MethodSpec
                 .constructorBuilder()
                 .addModifiers(Modifier.PUBLIC);
@@ -53,7 +55,7 @@ class QLClassGenerator {
         computeParams(fields, constructor, getterAndSetter, mandatoryFields)
         computeVarsMap(fields, getterAndSetter);
         boolean areConstructorParam = fields.size() > 0;
-        addTarget(fields, getterAndSetter, packageName, className);
+        addTarget(fields, getterAndSetter, className);
         TypeSpec.Builder query;
 
         addQuery(fields, getterAndSetter, mandatoryFields, "query");
@@ -91,10 +93,10 @@ class QLClassGenerator {
         for (QLVariablesElement element : qlQuery.getParameters().getParams()) {
             //todo kelian(12/06/17) exception if arg named query
             ParameterSpec param = ParameterSpec
-                    .builder(getType(element.type), element.name)
+                    .builder(getType(element.type, element.getEnumName()), element.name)
                     .build();
             FieldSpec field = FieldSpec
-                    .builder(getType(element.type), element.name, Modifier.PRIVATE)
+                    .builder(getType(element.type, element.getEnumName()), element.name, Modifier.PRIVATE)
                     .build();
             if (element.mandatory) {
                 mandatoryFields.add(field);
@@ -108,7 +110,7 @@ class QLClassGenerator {
         }
     }
 
-    TypeName getType(QLType qlType) {
+    TypeName getType(QLType qlType, String enumName) {
         switch (qlType) {
             case QLType.INT:
                 return TypeName.get(Integer.class);
@@ -118,8 +120,10 @@ class QLClassGenerator {
                 return TypeName.get(Boolean.class);
             case QLType.ID:
             case QLType.STRING:
-            default:
                 return TypeName.get(String.class);
+            case QLType.ENUM:
+            default:
+                return ClassName.get(packageName, enumName);
         }
     }
 
@@ -192,7 +196,6 @@ class QLClassGenerator {
     private void addTarget(
             ArrayList<FieldSpec> fieldSpecs,
             ArrayList<MethodSpec> methodSpecs,
-            String packageName,
             String className
     ) {
         ClassName targetClassName = ClassName.get(packageName, className + "Response");
@@ -248,12 +251,12 @@ class QLClassGenerator {
         return statement.build()
     }
 
-    TypeSpec generateResponse(String fileName, String packageName) {
+    TypeSpec generateResponse(String fileName) {
 
-        return createModels(fileName, packageName)
+        return createModels(fileName)
     }
 
-    TypeSpec createModels(String className, String packageName) {
+    TypeSpec createModels(String className) {
 
 
         ClassName qlResponse = ClassName.get(PACKAGE, "QLResponseModel");
@@ -345,7 +348,7 @@ class QLClassGenerator {
 
     private void convertLeaf(QLLeaf qlElement, TypeSpec.Builder parent, String elementName) {
         QLLeaf leaf = (QLLeaf) qlElement;
-        generateFieldSetterGetter(parent, buildListType(leaf.getType(), leaf.isList()), elementName);
+        generateFieldSetterGetter(parent, buildListType(leaf.getType(), leaf.isList(), leaf.getEnumName()), elementName);
     }
 
     private void convertFragment(QLFragmentNode qlElement, TypeSpec.Builder parent, String packageName) {
@@ -362,7 +365,11 @@ class QLClassGenerator {
     }
 
     TypeName buildListType(QLType type, boolean isList) {
-        final ClassName raw = getType(type);
+        return buildListType(type, isList, null);
+    }
+
+    TypeName buildListType(QLType type, boolean isList, String enumName) {
+        final ClassName raw = getType(type, enumName);
         if (!isList) {
             return raw;
         }
@@ -388,5 +395,8 @@ class QLClassGenerator {
         ParameterSpec param = ParameterSpec.builder(type, name).build()
         parent.addMethod(generateGetter(param));
         parent.addMethod(generateSetter(param));
+    }
+    public void setPackage ( String packageName ) {
+    this.packageName = packageName ;
     }
 }

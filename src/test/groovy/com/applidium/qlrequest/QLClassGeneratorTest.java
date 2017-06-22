@@ -19,10 +19,11 @@ public class QLClassGeneratorTest {
         qlQuery = parser.buildQuery();
         QLClassGenerator classGenerator = new QLClassGenerator();
         classGenerator.setQlQuery(qlQuery);
-        TypeSpec method = classGenerator.generateQuery("Test", "com.applidium.qlrequest");
+        classGenerator.setPackage("com.applidium.qlrequest");
+        TypeSpec method = classGenerator.generateQuery("Test");
         testRequest(method);
 
-        TypeSpec response = classGenerator.generateResponse("Test", "com.applidium.qlrequest");
+        TypeSpec response = classGenerator.generateResponse("Test");
 
         assertEquals(method.name, "TestRequest");
     }
