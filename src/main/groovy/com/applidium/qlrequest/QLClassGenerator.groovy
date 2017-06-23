@@ -14,6 +14,7 @@ class QLClassGenerator {
     private final String PACKAGE = "com.applidium.graphqlient";
     QLQuery qlQuery;
     private final List<String> alreadyUsedClassNames = new ArrayList<>();
+    private final List<String> alreadyUsedClassNamesRequest = new ArrayList<>();
     private String packageName;
 
     def generateSource(File file, String packageName) {
@@ -96,11 +97,87 @@ class QLClassGenerator {
                     .addSuperinterface(qlRequest)
         }
 
+
+        computeTreeQuery(query);
+
         if (areConstructorParam) {
             query.addMethod(emptyConstructor.build());
         }
 
         return query.build();
+    }
+
+    void computeTreeQuery(TypeSpec.Builder query) {
+        for (QLElement element : qlQuery.getQueryFields()) {
+            List<String> varNameDictionnary = new ArrayList<>();
+            createNodeClass(element, query, varNameDictionnary);
+        }
+    }
+
+    private boolean createNodeClass(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary) {
+        String nodeName = computeNodeName(element)
+        boolean shouldAddToParent = false;
+        TypeSpec.Builder subNode = TypeSpec.classBuilder(nodeName)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+        if (element instanceof QLNode) {
+
+            if (element.parameters.size() > 0) {
+                if (createParameterField(element, subNode, varNameDictionnary)) {
+                    shouldAddToParent = true;
+                }
+            }
+
+            List<String> alreadyUsedVarName = new ArrayList<>();
+            for (QLElement child : element.getChildren()) {
+                if(createNodeClass(child, subNode, alreadyUsedVarName)) {
+                    shouldAddToParent = true
+                }
+            }
+        } else if (element instanceof QLLeaf) {
+            if (element.parameters.size() > 0) {
+                if (createParameterField(element, subNode, varNameDictionnary)) {
+                    shouldAddToParent = true;
+                }
+            }
+        }
+
+        if (shouldAddToParent) {
+            parent.addType(subNode.build());
+        }
+        return shouldAddToParent;
+    }
+
+    private String computeNodeName(QLElement element) {
+        String nestedClassName = element.getName().capitalize();
+        while (alreadyUsedClassNamesRequest.contains(nestedClassName)) {
+            nestedClassName = "Sub" + nestedClassName;
+        }
+        alreadyUsedClassNamesRequest.add(nestedClassName);
+        return nestedClassName
+    }
+
+    boolean createParameterField(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary) {
+        boolean parentModelWontBeEmpty = false;
+        for (String key :element.parameters.keySet()) {
+            if (element.parameters.get(key) instanceof QLVariablesElement) {
+                continue;
+            } else {
+                String paramName = computeParamName(key, varNameDictionnary, element);
+                ClassName paramType = ClassName.get("java.lang", "String");
+                generateFieldSetterGetter(parent, paramType, paramName);
+                parentModelWontBeEmpty = true
+            }
+        }
+        return parentModelWontBeEmpty;
+    }
+
+    private String computeParamName(String key, ArrayList<String> alreadyUsedVarName, QLElement element) {
+        String paramName = key;
+        if (alreadyUsedVarName.contains(key)) {
+            paramName = paramName + element.getName().capitalize();
+        }
+        alreadyUsedVarName.add(paramName);
+        return paramName;
     }
 
     private void computeParams(
