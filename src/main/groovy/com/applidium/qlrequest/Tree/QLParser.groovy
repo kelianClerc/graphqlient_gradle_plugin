@@ -47,6 +47,10 @@ public class QLParser {
                     if (!s.endsWith(";")) {
                         lines[i] += ";";
                     }
+                } else if (s.startsWith("#-param-")) {
+                    if (!s.endsWith(";")) {
+                        lines[i] += ";"
+                    }
                 } else if (s.startsWith("#")) {
                     lines[i] = "";
                 }

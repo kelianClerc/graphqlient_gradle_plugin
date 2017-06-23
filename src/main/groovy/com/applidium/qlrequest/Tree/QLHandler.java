@@ -283,20 +283,47 @@ public class QLHandler {
         for (String param : stringParametersSplit) {
             String[] unit = param.split("[:]");
             if (unit.length > 1) {
+                Pattern pattern = Pattern.compile("#-param-(\\w+);");
+                Matcher matcher = pattern.matcher(unit[0]);
+                QLType paramType = null;
+                if (matcher.find()) {
+                    paramType = parseType(matcher.group(1));
+                }
+                unit[0] = unit[0].replaceAll(pattern.pattern(), "");
+
                 if (unit[0].charAt(0) == '$') {
                     params.put(unit[0], parseVariableType(unit));
                 } else if (unit[1].charAt(0) == '$') {
                     params.put(unit[0], new QLVariablesElement(unit[1].replace("$", "")));
                 } else {
-                    if (unit[1].indexOf("\"")  >= 0) {
-                        unit[1]= unit[1].replaceAll("\"", "");
-                        params.put(unit[0], unit[1]);
-                    } else if (unit[1].equals("true")||unit[1].equals("false")) {
-                        params.put(unit[0], Boolean.valueOf(unit[1]));
-                    } else if (unit[1].indexOf(".")>= 0) {
-                        params.put(unit[0], Float.valueOf(unit[1]));
+                    if (paramType != null) {
+                        switch (paramType) {
+                            case ID:
+                            case STRING:
+                            case ENUM:
+                                params.put(unit[0], unit[1]);
+                                break;
+                            case INT:
+                                params.put(unit[0], Integer.valueOf(unit[1]));
+                                break;
+                            case BOOLEAN:
+                                params.put(unit[0], Boolean.valueOf(unit[1]));
+                                break;
+                            case FLOAT:
+                                params.put(unit[0], Float.valueOf(unit[1]));
+                                break;
+                        }
                     } else {
-                        params.put(unit[0], Integer.valueOf(unit[1]));
+                        if (unit[1].indexOf("\"")  >= 0) {
+                            unit[1]= unit[1].replaceAll("\"", "");
+                            params.put(unit[0], unit[1]);
+                        } else if (unit[1].equals("true")||unit[1].equals("false")) {
+                            params.put(unit[0], Boolean.valueOf(unit[1]));
+                        } else if (unit[1].indexOf(".")>= 0) {
+                            params.put(unit[0], Float.valueOf(unit[1]));
+                        } else {
+                            params.put(unit[0], Integer.valueOf(unit[1]));
+                        }
                     }
                 }
             }

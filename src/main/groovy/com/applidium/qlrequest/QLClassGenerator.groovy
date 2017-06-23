@@ -163,12 +163,26 @@ class QLClassGenerator {
                 continue;
             } else {
                 String paramName = computeParamName(key, varNameDictionnary, element);
-                ClassName paramType = ClassName.get("java.lang", "String");
+                ClassName paramType = getParameterType(element.parameters.get(key));
                 generateFieldSetterGetter(parent, paramType, paramName);
                 parentModelWontBeEmpty = true
             }
         }
+
         return parentModelWontBeEmpty;
+
+    }
+
+    ClassName getParameterType(Object o) {
+        if (o instanceof String) {
+            return ClassName.get("java.lang", "String");
+        } else if (o instanceof Integer) {
+            return ClassName.get("java.lang", "Integer");
+        } else if (o instanceof Float) {
+            return ClassName.get("java.lang", "Float");
+        } else if (o instanceof Boolean) {
+            return ClassName.get("java.lang", "Boolean");
+        }
     }
 
     private String computeParamName(String key, ArrayList<String> alreadyUsedVarName, QLElement element) {
