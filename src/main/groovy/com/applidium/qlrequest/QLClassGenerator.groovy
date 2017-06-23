@@ -110,17 +110,17 @@ class QLClassGenerator {
     void computeTreeQuery(TypeSpec.Builder query) {
         for (QLElement element : qlQuery.getQueryFields()) {
             List<String> varNameDictionnary = new ArrayList<>();
-            createNodeClass(element, query, varNameDictionnary);
+            String parentRoot = packageName + "." + query.build().name;
+            createNodeClass(element, query, varNameDictionnary, parentRoot);
         }
     }
 
-    private boolean createNodeClass(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary) {
+    private boolean createNodeClass(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary, String parentPackage) {
         String nodeName = computeNodeName(element)
         boolean shouldAddToParent = false;
         TypeSpec.Builder subNode = TypeSpec.classBuilder(nodeName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
         if (element instanceof QLNode) {
-
             if (element.parameters.size() > 0) {
                 if (createParameterField(element, subNode, varNameDictionnary)) {
                     shouldAddToParent = true;
@@ -129,7 +129,7 @@ class QLClassGenerator {
 
             List<String> alreadyUsedVarName = new ArrayList<>();
             for (QLElement child : element.getChildren()) {
-                if(createNodeClass(child, subNode, alreadyUsedVarName)) {
+                if(createNodeClass(child, subNode, alreadyUsedVarName, parentPackage + "." + nodeName)) {
                     shouldAddToParent = true
                 }
             }
@@ -143,6 +143,11 @@ class QLClassGenerator {
 
         if (shouldAddToParent) {
             parent.addType(subNode.build());
+            ClassName fieldType = ClassName.get(parentPackage, subNode.build().name)
+            def field = FieldSpec.builder(fieldType, element.getName().capitalize(), Modifier.PUBLIC)
+                    .initializer("new \$T()", fieldType)
+                    .build();
+            parent.addField(field);
         }
         return shouldAddToParent;
     }
