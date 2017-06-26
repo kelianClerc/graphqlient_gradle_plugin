@@ -16,6 +16,7 @@ class QLClassGenerator {
     private final List<String> alreadyUsedClassNames = new ArrayList<>();
     private final List<String> alreadyUsedClassNamesRequest = new ArrayList<>();
     private String packageName;
+    private CodeBlock.Builder builtQuery = new CodeBlock.Builder();
 
     def generateSource(File file, String packageName) {
         String fileContent = file.text;
@@ -78,27 +79,25 @@ class QLClassGenerator {
         addTarget(fields, getterAndSetter, className);
         TypeSpec.Builder query;
 
+        if (qlQuery.isMutation()) {
+            query = TypeSpec.classBuilder(className + "Mutation")
+        } else {
+            query = TypeSpec.classBuilder(className + "Request")
+        }
+
+        String printedQuery = qlQuery.printQuery()
+        builtQuery.add(printedQuery.substring(0,printedQuery.indexOf("{") + 1));
+        computeTreeQuery(query);
+        builtQuery.add("}");
+
         addQuery(fields, getterAndSetter, mandatoryFields, "query");
         ClassName qlRequest = ClassName.get(PACKAGE, "QLRequest");
 
-        if (qlQuery.isMutation()) {
-            query = TypeSpec.classBuilder(className + "Mutation")
-                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                    .addMethod(constructor.build())
-                    .addFields(fields)
-                    .addMethods(getterAndSetter)
-                    .addSuperinterface(qlRequest)
-        } else {
-            query = TypeSpec.classBuilder(className + "Request")
-                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                    .addMethod(constructor.build())
-                    .addFields(fields)
-                    .addMethods(getterAndSetter)
-                    .addSuperinterface(qlRequest)
-        }
-
-
-        computeTreeQuery(query);
+        query.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+             .addMethod(constructor.build())
+             .addFields(fields)
+             .addMethods(getterAndSetter)
+             .addSuperinterface(qlRequest)
 
         if (areConstructorParam) {
             query.addMethod(emptyConstructor.build());
@@ -120,25 +119,28 @@ class QLClassGenerator {
         boolean shouldAddToParent = false;
         TypeSpec.Builder subNode = TypeSpec.classBuilder(nodeName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+        String packageToCurrentClass = nodeName
         if (element instanceof QLNode) {
             if (element.parameters.size() > 0) {
                 if (createParameterField(element, subNode, varNameDictionnary)) {
                     shouldAddToParent = true;
                 }
             }
-
             List<String> alreadyUsedVarName = new ArrayList<>();
+            computeBuiltQuery(element, shouldAddToParent, false, subNode, packageToCurrentClass);
             for (QLElement child : element.getChildren()) {
-                if(createNodeClass(child, subNode, alreadyUsedVarName, parentPackage + "." + nodeName)) {
+                if(createNodeClass(child, subNode, alreadyUsedVarName, packageToCurrentClass)) {
                     shouldAddToParent = true
                 }
             }
+            builtQuery.add("}");
         } else if (element instanceof QLLeaf) {
             if (element.parameters.size() > 0) {
                 if (createParameterField(element, subNode, varNameDictionnary)) {
                     shouldAddToParent = true;
                 }
             }
+            computeBuiltQuery(element, shouldAddToParent, false, subNode, packageToCurrentClass);
         }
 
         if (shouldAddToParent) {
@@ -150,6 +152,49 @@ class QLClassGenerator {
             parent.addField(field);
         }
         return shouldAddToParent;
+    }
+
+    private void computeBuiltQuery(QLElement element, boolean shouldAddCustomParams, boolean shouldAddChildren, TypeSpec.Builder associatedClass, String packageToCurrentClass) {
+        String querySoFar = builtQuery.build()
+        if (querySoFar.length() > 0) {
+            if (querySoFar.charAt(querySoFar.length()-1) == '{') {
+                builtQuery.add(element.print(shouldAddCustomParams, shouldAddChildren));
+            } else if (querySoFar.charAt(querySoFar.length()-1) != ',') {
+                builtQuery.add("," + element.print(shouldAddCustomParams, shouldAddChildren))
+            }
+        }
+
+        if (shouldAddCustomParams) {
+            appendParams(element, associatedClass, packageToCurrentClass);
+        }
+
+        if (element instanceof QLNode) {
+            builtQuery.add("{");
+        }
+
+    }
+
+    private void appendParams(QLElement qlElement, TypeSpec.Builder associatedClass, String packageToCurrentClass) {
+        List<FieldSpec> fields = associatedClass.build().fieldSpecs;
+        builtQuery.add("(");
+        int i = 0;
+        for (FieldSpec fieldSpec : fields) {
+            if (fieldSpec.annotations.size() > 0) {
+                String annotationValue = fieldSpec.annotations.get(0).members.get("link").get(0).toString();
+                println(annotationValue);
+                String target = annotationValue.replaceAll("\"", "");
+               builtQuery.add("\\\"\$N\\\"", target);
+               builtQuery.add(":");
+                builtQuery.add("\$L" ,'"+');
+               builtQuery.add("\$N.\$N()", packageToCurrentClass, fieldSpec.name);
+                builtQuery.add("\$L" ,'+"');
+                if (i < fields.size() - 1) {
+                    builtQuery.add(",");
+                }
+                i++;
+            }
+        }
+        builtQuery.add(")");
     }
 
     private String computeNodeName(QLElement element) {
@@ -169,7 +214,7 @@ class QLClassGenerator {
             } else {
                 String paramName = computeParamName(key, varNameDictionnary, element);
                 ClassName paramType = getParameterType(element.parameters.get(key));
-                generateFieldSetterGetter(parent, paramType, paramName);
+                generateFieldSetterGetter(parent, paramType, paramName, true, key);
                 parentModelWontBeEmpty = true
             }
         }
@@ -190,7 +235,7 @@ class QLClassGenerator {
         }
     }
 
-    private String computeParamName(String key, ArrayList<String> alreadyUsedVarName, QLElement element) {
+    private String computeParamName(String key, List<String> alreadyUsedVarName, QLElement element) {
         String paramName = key;
         if (alreadyUsedVarName.contains(key)) {
             paramName = paramName + element.getName().capitalize();
@@ -341,8 +386,7 @@ class QLClassGenerator {
             String name
     ) {
         FieldSpec.Builder queryField = FieldSpec
-                .builder(String.class, name, Modifier.PRIVATE, Modifier.FINAL);
-        queryField.initializer("\$S", qlQuery.printQuery())
+                .builder(String.class, name, Modifier.PRIVATE);
         fields.add(queryField.build())
         methods.add(getQuery(mandatoryFields, name))
     }
@@ -362,6 +406,7 @@ class QLClassGenerator {
             statement.addStatement(throwMessage, exception, field.name);
             statement.endControlFlow();
         }
+        statement.addStatement("\$N = \"\$L\"", name, builtQuery.build())
         statement.addStatement("return \$N", name);
         return statement.build()
     }
@@ -506,7 +551,24 @@ class QLClassGenerator {
     }
 
     private void generateFieldSetterGetter(TypeSpec.Builder parent, TypeName type, String name) {
-        parent.addField(FieldSpec.builder(type, name, Modifier.PRIVATE).build());
+        generateFieldSetterGetter(parent, type, name, false, null);
+    }
+
+    private void generateFieldSetterGetter(
+            TypeSpec.Builder parent,
+            TypeName type, String name,
+            boolean shouldAddAnnotationToField,
+            String linkedTo
+    ) {
+        FieldSpec.Builder builder = FieldSpec.builder(type, name, Modifier.PRIVATE)
+        if (shouldAddAnnotationToField) {
+            ClassName annotationName = ClassName.get(PACKAGE + ".annotation", "LinkTo");
+            AnnotationSpec annotation = AnnotationSpec.builder(annotationName)
+                    .addMember("link", "\$S", linkedTo)
+                    .build()
+            builder.addAnnotation(annotation);
+        }
+        parent.addField(builder.build());
         ParameterSpec param = ParameterSpec.builder(type, name).build()
         parent.addMethod(generateGetter(param));
         parent.addMethod(generateSetter(param));

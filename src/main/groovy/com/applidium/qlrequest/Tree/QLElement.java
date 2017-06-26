@@ -49,11 +49,21 @@ public class QLElement {
     }
 
     public String print() {
+        return print(true);
+    }
+
+    public String print(boolean shouldSkipParams) {
         String result = "";
         result += computeAlias();
         result += name;
-        result += computeParams();
+        if (!shouldSkipParams) {
+            result += computeParams();
+        }
         return result;
+    }
+
+    public String print(boolean shouldSkipParams, boolean shouldAddChildren) {
+        return print(shouldSkipParams);
     }
 
     private String computeAlias() {

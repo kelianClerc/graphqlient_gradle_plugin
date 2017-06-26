@@ -2,11 +2,10 @@ package com.applidium.qlrequest;
 
 import com.applidium.qlrequest.Query.QLQuery;
 import com.applidium.qlrequest.Tree.QLParser;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.TypeSpec;
 
 import org.junit.Test;
-
-import javax.lang.model.element.Modifier;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
@@ -63,13 +62,26 @@ public class QLClassGeneratorTest {
         classGenerator.setQlQuery(qlQuery);
         classGenerator.setPackage("com.applidium.qlrequest");
 
-        TypeSpec.Builder method = TypeSpec.classBuilder("Test" + "Request")
-                                                  .addModifiers(Modifier.PUBLIC, Modifier.FINAL);
-        classGenerator.computeTreeQuery(method);
+        TypeSpec method = classGenerator.generateQuery("test.query");
 
-        TypeSpec result = method.build();
-        assertEquals(result.name, "TestRequest");
-        assertEquals(result.typeSpecs.size(), 1);
+        TypeSpec response = method;
+
+        assertEquals(response.fieldSpecs.size(), 3);
+        assertEquals(response.typeSpecs.size(), 1);
+        assertEquals(response.typeSpecs.get(0).fieldSpecs.size(), 2);
+        assertEquals(response.typeSpecs.get(0).typeSpecs.size(), 2);
+        assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).name, "Id");
+        assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).fieldSpecs.size(),2);
+        assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).fieldSpecs.get(0).name, "id");
+        assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).fieldSpecs.get(1).name, "name");
+        for(FieldSpec fieldSpecSpec : response.fieldSpecs) {
+            System.out.println(fieldSpecSpec.name);
+            if (fieldSpecSpec.name.equals("query")) {
+                System.out.println(fieldSpecSpec.toString());
+            }
+        }
+
+        System.out.println(response.toString());
 
     }
 }
