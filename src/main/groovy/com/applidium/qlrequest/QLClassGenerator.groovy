@@ -86,7 +86,7 @@ class QLClassGenerator {
         }
 
         String printedQuery = qlQuery.printQuery()
-        builtQuery.add(printedQuery.substring(0,printedQuery.indexOf("{") + 1));
+        builtQuery.add("\$L", printedQuery.substring(0,printedQuery.indexOf("{") + 1));
         computeTreeQuery(query);
         builtQuery.add("}");
 
@@ -110,57 +110,108 @@ class QLClassGenerator {
         for (QLElement element : qlQuery.getQueryFields()) {
             List<String> varNameDictionnary = new ArrayList<>();
             String parentRoot = packageName + "." + query.build().name;
-            createNodeClass(element, query, varNameDictionnary, parentRoot);
+            createElementClass(element, query, varNameDictionnary, "");
+        }
+
+        for (QLFragment fragment : qlQuery.fragments) {
+            builtQuery.add("fragment \$N on \$N {", fragment.name, fragment.targetObject);
+            String parentRoot = "";
+            boolean containsDynamicParameter = false;
+            TypeSpec.Builder fragmentClass = TypeSpec.classBuilder(fragment.name.capitalize()).addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+            for (QLElement element : fragment.children) {
+                List<String> varNameDictionnary = new ArrayList<>();
+                if (createElementClass(element, fragmentClass, varNameDictionnary, fragment.name.capitalize())){
+                    containsDynamicParameter = true;
+                }
+            }
+            builtQuery.add("}");
+
+            if (containsDynamicParameter) {
+                query.addType(fragmentClass.build());
+                ClassName fieldType = ClassName.get(parentRoot, fragmentClass.build().name)
+                def field = FieldSpec.builder(fieldType, fragment.name.capitalize(), Modifier.PUBLIC)
+                        .initializer("new \$T()", fieldType)
+                        .build();
+                query.addField(field);
+            } else {
+                alreadyUsedClassNamesRequest.remove(fragment.name.capitalize());
+            }
         }
     }
 
-    private boolean createNodeClass(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary, String parentPackage) {
+    private boolean createElementClass(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary, String parentPackage) {
         String nodeName = computeNodeName(element)
         boolean shouldAddToParent = false;
         TypeSpec.Builder subNode = TypeSpec.classBuilder(nodeName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
-        String packageToCurrentClass = nodeName
+        String packageToCurrentClass = nodeName;
+        packageToCurrentClass = parentPackage.equals("") ? packageToCurrentClass : parentPackage + "." + packageToCurrentClass;
         if (element instanceof QLNode) {
-            if (element.parameters.size() > 0) {
-                if (createParameterField(element, subNode, varNameDictionnary)) {
-                    shouldAddToParent = true;
-                }
-            }
-            List<String> alreadyUsedVarName = new ArrayList<>();
-            computeBuiltQuery(element, shouldAddToParent, false, subNode, packageToCurrentClass);
-            for (QLElement child : element.getChildren()) {
-                if(createNodeClass(child, subNode, alreadyUsedVarName, packageToCurrentClass)) {
-                    shouldAddToParent = true
-                }
-            }
-            builtQuery.add("}");
+            shouldAddToParent = createNodeClass(element, subNode, varNameDictionnary, packageToCurrentClass)
         } else if (element instanceof QLLeaf) {
-            if (element.parameters.size() > 0) {
-                if (createParameterField(element, subNode, varNameDictionnary)) {
-                    shouldAddToParent = true;
+            shouldAddToParent = createLeafClass(element, subNode, varNameDictionnary, packageToCurrentClass)
+        } else if (element instanceof QLFragmentNode) {
+            if (element.isInlineFragment()) {
+                //remove ... on User{ efef } and keep efef
+                for (QLElement subElement : element.getChildren()){
+                    createElementClass(subElement, parent, varNameDictionnary, packageToCurrentClass);
                 }
             }
-            computeBuiltQuery(element, shouldAddToParent, false, subNode, packageToCurrentClass);
+            else {
+                computeBuiltQuery(element, false, true, subNode, packageToCurrentClass)
+            }
         }
 
         if (shouldAddToParent) {
             parent.addType(subNode.build());
             ClassName fieldType = ClassName.get(parentPackage, subNode.build().name)
-            def field = FieldSpec.builder(fieldType, element.getName().capitalize(), Modifier.PUBLIC)
+            def field = FieldSpec.builder(fieldType, nodeName.capitalize(), Modifier.PUBLIC)
                     .initializer("new \$T()", fieldType)
                     .build();
             parent.addField(field);
+        } else {
+            alreadyUsedClassNamesRequest.remove(nodeName);
         }
         return shouldAddToParent;
+    }
+
+    private boolean createLeafClass(QLLeaf element, TypeSpec.Builder subNode, List<String> varNameDictionnary, String packageToCurrentClass) {
+        boolean shouldAddToParent = false;
+        if (element.parameters.size() > 0) {
+            if (createParameterField(element, subNode, varNameDictionnary)) {
+                shouldAddToParent = true;
+            }
+        }
+        computeBuiltQuery(element, shouldAddToParent, false, subNode, packageToCurrentClass);
+        shouldAddToParent
+    }
+
+    private boolean createNodeClass(QLNode element, TypeSpec.Builder subNode, List<String> varNameDictionnary, String packageToCurrentClass) {
+        List<String> local = varNameDictionnary;
+        boolean shouldAddToParent = false;
+        if (element.parameters.size() > 0) {
+            if (createParameterField(element, subNode, varNameDictionnary)) {
+                shouldAddToParent = true;
+            }
+        }
+        List<String> alreadyUsedVarName = new ArrayList<>();
+        computeBuiltQuery(element, shouldAddToParent, false, subNode, packageToCurrentClass);
+        for (QLElement child : element.getChildren()) {
+            if (createElementClass(child, subNode, alreadyUsedVarName, packageToCurrentClass)) {
+                shouldAddToParent = true
+            }
+        }
+        builtQuery.add("}");
+        shouldAddToParent
     }
 
     private void computeBuiltQuery(QLElement element, boolean shouldAddCustomParams, boolean shouldAddChildren, TypeSpec.Builder associatedClass, String packageToCurrentClass) {
         String querySoFar = builtQuery.build()
         if (querySoFar.length() > 0) {
             if (querySoFar.charAt(querySoFar.length()-1) == '{') {
-                builtQuery.add(element.print(shouldAddCustomParams, shouldAddChildren));
+                builtQuery.add("\$L", element.print(shouldAddCustomParams, shouldAddChildren));
             } else if (querySoFar.charAt(querySoFar.length()-1) != ',') {
-                builtQuery.add("," + element.print(shouldAddCustomParams, shouldAddChildren))
+                builtQuery.add(",\$L", element.print(shouldAddCustomParams, shouldAddChildren))
             }
         }
 
@@ -198,6 +249,9 @@ class QLClassGenerator {
     }
 
     private String computeNodeName(QLElement element) {
+        if (element instanceof QLFragmentNode && element.isInlineFragment()) {
+            return element.target;
+        }
         String nestedClassName = element.getName().capitalize();
         while (alreadyUsedClassNamesRequest.contains(nestedClassName)) {
             nestedClassName = "Sub" + nestedClassName;

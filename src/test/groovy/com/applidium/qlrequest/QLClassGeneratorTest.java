@@ -82,6 +82,56 @@ public class QLClassGeneratorTest {
         }
 
         System.out.println(response.toString());
+    }
 
+    @Test
+    public void generateTreeQueryComplexeTest() throws Exception {
+        QLQuery qlQuery;
+        String query = "query TitlePost($postId:ID!,$number:Int=3){result:posts(number:$number){user{...test}},comments{user{...test}},post(id:$postId){title},users{name,id},user(id:1){name,posts{firstName:body}}}fragment test on User {name(length:10),posts{...test2}}fragment test2 on Post {created_at}";
+
+        QLParser parser = new QLParser();
+        parser.setToParse(query);
+        qlQuery = parser.buildQuery();
+        QLClassGenerator classGenerator = new QLClassGenerator();
+        classGenerator.setQlQuery(qlQuery);
+        classGenerator.setPackage("com.applidium.qlrequest");
+
+        TypeSpec method = classGenerator.generateQuery("test.query");
+
+        TypeSpec response = method;
+
+        for(FieldSpec fieldSpecSpec : response.fieldSpecs) {
+            System.out.println(fieldSpecSpec.name);
+            if (fieldSpecSpec.name.equals("query")) {
+                System.out.println(fieldSpecSpec.toString());
+            }
+        }
+
+        System.out.println(response.toString());
+    }
+
+    @Test
+    public void generateInlineFragmentTest() throws Exception {
+        QLQuery qlQuery;
+        String query = "{users{... on User{name, id}}}";
+        QLParser parser = new QLParser();
+        parser.setToParse(query);
+        qlQuery = parser.buildQuery();
+        QLClassGenerator classGenerator = new QLClassGenerator();
+        classGenerator.setQlQuery(qlQuery);
+        classGenerator.setPackage("com.applidium.qlrequest");
+
+        TypeSpec method = classGenerator.generateQuery("test.query");
+
+        TypeSpec response = method;
+
+        for(FieldSpec fieldSpecSpec : response.fieldSpecs) {
+            System.out.println(fieldSpecSpec.name);
+            if (fieldSpecSpec.name.equals("query")) {
+                System.out.println(fieldSpecSpec.toString());
+            }
+        }
+
+        System.out.println(response.toString());
     }
 }
