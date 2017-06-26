@@ -60,10 +60,14 @@ public class QLQuery {
     }
 
     public String printQuery() {
+        return printQuery(false);
+    }
+
+    public String printQuery(boolean shouldSkipParameters) {
         StringBuilder stringBuilder = new StringBuilder();
         appendHeader(stringBuilder);
         for (QLElement element : queryFields) {
-            stringBuilder.append(element.print());
+            stringBuilder.append(element.print(shouldSkipParameters));
         }
         appendEnd(stringBuilder);
         for (QLFragment fragment : fragments) {

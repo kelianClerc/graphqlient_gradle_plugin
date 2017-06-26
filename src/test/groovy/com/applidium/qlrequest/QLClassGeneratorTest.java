@@ -19,13 +19,9 @@ public class QLClassGeneratorTest {
         QLParser parser = new QLParser();
         parser.setToParse(query);
         qlQuery = parser.buildQuery();
-        QLClassGenerator classGenerator = new QLClassGenerator();
-        classGenerator.setQlQuery(qlQuery);
-        classGenerator.setPackage("com.applidium.qlrequest");
+        QLRequestGenerator classGenerator = new QLRequestGenerator(qlQuery, "com.applidium.qlrequest");
         TypeSpec method = classGenerator.generateQuery("Test");
         testRequest(method);
-
-        TypeSpec response = classGenerator.generateResponse("Test");
 
         assertEquals(method.name, "TestRequest");
     }
@@ -42,7 +38,7 @@ public class QLClassGeneratorTest {
 
         QLClassGenerator classGenerator = new QLClassGenerator();
         classGenerator.setPackage("com.applidium.qlrequest");
-        TypeSpec method = classGenerator.generateEnum("test.qlenum", "CT,TERRO,SPEC");
+        TypeSpec method = QLEnumGenerator.generateEnum("Test", "CT,TERRO,SPEC");
 
         assertEquals(method.name, "TestQLEnum");
         assertTrue(method.enumConstants.containsKey("CT"));
@@ -58,11 +54,9 @@ public class QLClassGeneratorTest {
         QLParser parser = new QLParser();
         parser.setToParse(query);
         qlQuery = parser.buildQuery();
-        QLClassGenerator classGenerator = new QLClassGenerator();
-        classGenerator.setQlQuery(qlQuery);
-        classGenerator.setPackage("com.applidium.qlrequest");
+        QLRequestGenerator requestGenerator = new QLRequestGenerator(qlQuery, "com.applidium.qlrequest");
 
-        TypeSpec method = classGenerator.generateQuery("test.query");
+        TypeSpec method = requestGenerator.generateQuery("test.query");
 
         TypeSpec response = method;
 
@@ -92,11 +86,9 @@ public class QLClassGeneratorTest {
         QLParser parser = new QLParser();
         parser.setToParse(query);
         qlQuery = parser.buildQuery();
-        QLClassGenerator classGenerator = new QLClassGenerator();
-        classGenerator.setQlQuery(qlQuery);
-        classGenerator.setPackage("com.applidium.qlrequest");
+        QLRequestGenerator requestGenerator = new QLRequestGenerator(qlQuery, "com.applidium.qlrequest");
 
-        TypeSpec method = classGenerator.generateQuery("test.query");
+        TypeSpec method = requestGenerator.generateQuery("test.query");
 
         TypeSpec response = method;
 
@@ -117,11 +109,9 @@ public class QLClassGeneratorTest {
         QLParser parser = new QLParser();
         parser.setToParse(query);
         qlQuery = parser.buildQuery();
-        QLClassGenerator classGenerator = new QLClassGenerator();
-        classGenerator.setQlQuery(qlQuery);
-        classGenerator.setPackage("com.applidium.qlrequest");
+        QLRequestGenerator requestGenerator = new QLRequestGenerator(qlQuery, "com.applidium.qlrequest");
 
-        TypeSpec method = classGenerator.generateQuery("test.query");
+        TypeSpec method = requestGenerator.generateQuery("test.query");
 
         TypeSpec response = method;
 

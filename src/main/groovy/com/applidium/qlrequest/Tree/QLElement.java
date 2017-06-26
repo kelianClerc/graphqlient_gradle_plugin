@@ -49,7 +49,7 @@ public class QLElement {
     }
 
     public String print() {
-        return print(true);
+        return print(true, true);
     }
 
     public String print(boolean shouldSkipParams) {

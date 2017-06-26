@@ -40,26 +40,26 @@ public class QLElementTest {
         HashMap<String, Object> params = new HashMap<>();
         params.put(key, value);
         QLElement element = new QLElement(name, params);
-        assertEquals(element.print(), name + "(" + key + ":" + value +")");
+        assertEquals(element.print(false), name + "(" + key + ":" + value +")");
 
 
         HashMap<String, Object> params2 = new HashMap<>();
         params2.putAll(params);
         params2.put(key2, value2);
         QLElement element2 = new QLElement(name, params2);
-        assertTrue(element2.print().contains(name + "("));
-        assertTrue(element2.print().contains(key2 + ":\"" + value2 + "\""));
-        assertTrue(element2.print().contains(key + ":" + value));
+        assertTrue(element2.print(false).contains(name + "("));
+        assertTrue(element2.print(false).contains(key2 + ":\"" + value2 + "\""));
+        assertTrue(element2.print(false).contains(key + ":" + value));
 
         HashMap<String, Object> params3 = new HashMap<>();
         params3.putAll(params2);
         params3.put(key3, value3);
         QLElement element3 = new QLElement(name, params3);
 
-        assertTrue(element3.print().contains(name + "("));
-        assertTrue(element3.print().contains(key2 + ":\"" + value2 + "\""));
-        assertTrue(element3.print().contains(key + ":" + value));
-        assertTrue(element3.print().contains(key3 + ":" + value3.printVariableName()));
+        assertTrue(element3.print(false).contains(name + "("));
+        assertTrue(element3.print(false).contains(key2 + ":\"" + value2 + "\""));
+        assertTrue(element3.print(false).contains(key + ":" + value));
+        assertTrue(element3.print(false).contains(key3 + ":" + value3.printVariableName()));
 
     }
 
@@ -72,7 +72,7 @@ public class QLElementTest {
         HashMap<String, Object> params = new HashMap<>();
         params.put(key, value);
         QLElement element = new QLElement(name, alias, params);
-        assertEquals(element.print(), alias + ":" + name + "(" + key + ":" + value +")");
+        assertEquals(element.print(false), alias + ":" + name + "(" + key + ":" + value +")");
     }
 
     @Test
