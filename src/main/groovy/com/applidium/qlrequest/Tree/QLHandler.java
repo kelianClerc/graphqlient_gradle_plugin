@@ -97,6 +97,10 @@ public class QLHandler {
             typeString = typeString.replace(";", "");
             typeString = typeString.replaceAll(" ", "");
         } else if (typeString.contains("#-list-")) {
+            typeString = typeString.replace("#", "");
+            typeString = typeString.replace("-list-", "");
+            typeString = typeString.replace(";", "");
+            typeString = typeString.replaceAll(" ", "");
             isList = true;
         } else {
             isList = false;
