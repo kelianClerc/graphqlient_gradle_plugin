@@ -5,13 +5,26 @@ apply plugin: 'groovy'
 apply plugin: 'java'
 apply plugin: 'maven'
 
+
 repositories {
     mavenCentral()
+}
+
+configurations {
+    provided
+}
+
+sourceSets {
+    main {
+        compileClasspath += configurations.provided
+    }
 }
 
 dependencies {
     compile gradleApi()
     compile localGroovy()
+    compile 'com.squareup:javapoet:1.9.0'
+    provided 'com.android.tools.build:gradle:1.+'
 }
 
 uploadArchives {
