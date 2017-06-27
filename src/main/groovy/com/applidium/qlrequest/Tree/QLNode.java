@@ -14,7 +14,6 @@ public class QLNode extends QLElement {
 
     private final ArrayList<QLElement> children = new ArrayList<>();
     private Class<QLModel> type;
-    private boolean isList;
 
     public QLNode(QLElement element) {
         super(element);
@@ -33,11 +32,6 @@ public class QLNode extends QLElement {
     }public QLNode(String name, String alias, Map<String, Object> params, Class<QLModel> nodeClass) {
         super(name, alias, params);
         this.type = nodeClass;
-    }
-
-    public QLNode(String name, String alias, Map<String, Object> parameters, boolean isList) {
-        super(name, alias, parameters);
-        this.isList = isList;
     }
 
     public void addChild(QLElement child) {
@@ -90,13 +84,5 @@ public class QLNode extends QLElement {
 
     public void setType(Class<?> type) {
         this.type = (Class<QLModel>) type;
-    }
-
-    public boolean isList() {
-        return isList;
-    }
-
-    public void setList(boolean list) {
-        isList = list;
     }
 }

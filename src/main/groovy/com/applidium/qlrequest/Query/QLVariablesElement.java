@@ -6,6 +6,7 @@ public class QLVariablesElement {
     private String name;
     private QLType type;
     private boolean isMandatory;
+    private Object defaultValue;
 
     public QLVariablesElement() {
     }
@@ -24,6 +25,13 @@ public class QLVariablesElement {
         this.name = name;
         this.type = type;
         this.isMandatory = isMandatory;
+    }
+
+    public QLVariablesElement(String name, QLType type, boolean isMandatory, Object defaultValue) {
+        this.name = name;
+        this.type = type;
+        this.isMandatory = isMandatory;
+        this.defaultValue = defaultValue;
     }
 
     public String getName() {
@@ -61,6 +69,17 @@ public class QLVariablesElement {
         if (isMandatory) {
             res += MANDATORY_CHARACTER;
         }
+        if (defaultValue != null) {
+            res += "=" + defaultValue;
+        }
         return res;
+    }
+
+    public Object getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(Object defaultValue) {
+        this.defaultValue = defaultValue;
     }
 }

@@ -10,7 +10,10 @@ import com.squareup.javapoet.*
 import javax.lang.model.element.Modifier
 
 class QLClassGenerator {
+
+    private final String PACKAGE = "com.applidium.graphqlient";
     QLQuery qlQuery;
+    private final List<String> alreadyUsedClassNames = new ArrayList<>();
 
     def generateSource(File file, String packageName) {
         String fileContent = file.text;
@@ -49,36 +52,27 @@ class QLClassGenerator {
 
         computeParams(fields, constructor, getterAndSetter, mandatoryFields)
         computeVarsMap(fields, getterAndSetter);
+        boolean areConstructorParam = fields.size() > 0;
+        addTarget(fields, getterAndSetter, packageName, className);
+        addQuery(fields, getterAndSetter, mandatoryFields);
 
-        ClassName targetClassName = ClassName.get(packageName, className + "Response");
-
-        FieldSpec target = FieldSpec
-                .builder(Class.class, "target", Modifier.PUBLIC, Modifier.FINAL)
-                .initializer("\$T.class", targetClassName)
-                .build();
-
-        FieldSpec.Builder queryField = FieldSpec
-                .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
-        queryField.initializer("\$S", qlQuery.printQuery())
+        ClassName qlRequest = ClassName.get(PACKAGE, "QLRequest");
 
         TypeSpec.Builder query = TypeSpec.classBuilder(className + "Request")
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                .addField(queryField.build())
-                .addFields(fields)
-                .addField(target)
                 .addMethod(constructor.build())
-                .addMethod(getQuery(mandatoryFields))
-                .addMethods(getterAndSetter);
+                .addFields(fields)
+                .addMethods(getterAndSetter)
+                .addSuperinterface(qlRequest)
 
-        if (fields.size() > 0) {
+        if (areConstructorParam) {
             query.addMethod(emptyConstructor.build());
         }
 
         return query.build();
     }
 
-    private
-    void computeParams(
+    private void computeParams(
             ArrayList<FieldSpec> fields,
             MethodSpec.Builder constructor,
             ArrayList<MethodSpec> getterAndSetter,
@@ -120,7 +114,7 @@ class QLClassGenerator {
     }
 
     MethodSpec generateGetter(ParameterSpec param) {
-        MethodSpec.Builder getter = MethodSpec.methodBuilder("get" + param.name.capitalize())
+        MethodSpec.Builder getter = MethodSpec.methodBuilder(param.name)
                 .addModifiers(Modifier.PUBLIC)
                 .returns(param.type);
 
@@ -154,35 +148,84 @@ class QLClassGenerator {
 
     void computeVarsMap(ArrayList<FieldSpec> fieldSpecs, ArrayList<MethodSpec> methodSpecs) {
 
-        ClassName map = ClassName.get("java.util", "Map");
-        ClassName hashmap = ClassName.get("java.util", "HashMap");
-        ClassName key = ClassName.get("java.lang", "String");
-        ClassName value = ClassName.get("java.lang", "Object");
-        TypeName mapVars = ParameterizedTypeName.get(map, key, value);
+        ClassName stringClass = ClassName.get("java.lang", "String");
+        ClassName stringBuilder = ClassName.get("java.lang", "StringBuilder");
 
-        MethodSpec.Builder getVars = MethodSpec.methodBuilder("getVariables");
+
+        MethodSpec.Builder getVars = MethodSpec.methodBuilder("variables");
         getVars.addModifiers(Modifier.PUBLIC);
-        getVars.returns(Map.class);
-        getVars.addStatement("\$T result = new \$T<>()", mapVars, hashmap)
+        getVars.addAnnotation(Override.class)
+        getVars.returns(stringClass);
+        getVars.addStatement("\$T result = new \$T()", stringBuilder, stringBuilder);
+        getVars.addStatement("result.append(\"{\")");
+
+        int i = 0;
 
         for (FieldSpec fieldSpec : fieldSpecs) {
             getVars.beginControlFlow("if (\$N != null)", fieldSpec.name);
-            getVars.addStatement("result.put(\$S, \$N)", fieldSpec.name, fieldSpec.name);
+            getVars.addStatement("result.append(\"\\\"\")");
+            getVars.addStatement("result.append(\$S)", fieldSpec.name);
+            getVars.addStatement("result.append(\"\\\"\")");
+            getVars.addStatement("result.append(\":\")");
+            getVars.addStatement("result.append(\$N)", fieldSpec.name);
             getVars.endControlFlow();
+            if (i < fieldSpecs.size() - 1) {
+                getVars.addStatement("result.append(\",\")");
+            }
         }
+        getVars.addStatement("result.append(\"}\")");
 
-        getVars.addStatement("return result");
+        getVars.addStatement("return result.toString()");
         methodSpecs.add(getVars.build());
     }
 
-    private MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
-        String packageName = "com.applidium.qlrequest.exceptions"
-        ClassName exception = ClassName.get(packageName, "QLException");
+    private void addTarget(
+            ArrayList<FieldSpec> fieldSpecs,
+            ArrayList<MethodSpec> methodSpecs,
+            String packageName,
+            String className
+    ) {
+        ClassName targetClassName = ClassName.get(packageName, className + "Response");
+        ClassName qlResponse = ClassName.get(PACKAGE, "QLResponseModel");
+        TypeName wildcardClass = ParameterizedTypeName.get(ClassName.get(Class.class), WildcardTypeName.subtypeOf(qlResponse));
+        TypeName targetClass = ParameterizedTypeName.get(ClassName.get(Class.class), targetClassName);
 
-        MethodSpec.Builder statement = MethodSpec.methodBuilder("query").
-                addModifiers(Modifier.PUBLIC)
+        FieldSpec target = FieldSpec
+                .builder(wildcardClass, "target", Modifier.PUBLIC, Modifier.FINAL)
+                .initializer("\$T.class", targetClassName)
+                .build()
+
+        MethodSpec targetMethod = MethodSpec.methodBuilder("target")
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
+                .returns(targetClass)
+                .addStatement("return (\$T) \$N", targetClass, target)
+                .build()
+
+        fieldSpecs.add(target)
+        methodSpecs.add(targetMethod)
+    }
+
+    private void addQuery(
+            ArrayList<FieldSpec> fields,
+            ArrayList<MethodSpec> methods,
+            ArrayList<FieldSpec> mandatoryFields
+    ) {
+        FieldSpec.Builder queryField = FieldSpec
+                .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
+        queryField.initializer("\$S", qlQuery.printQuery())
+        fields.add(queryField.build())
+        methods.add(getQuery(mandatoryFields))
+    }
+
+    private MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
+        ClassName exception = ClassName.get(PACKAGE + ".exceptions", "QLException");
+
+        MethodSpec.Builder statement = MethodSpec.methodBuilder("query")
+                .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(Override.class)
                 .returns(String.class)
-                //.addException(exception);
+                .addException(exception);
 
         for (FieldSpec field : mandatoryFields) {
             statement.beginControlFlow("if(\$N == null)", field.name);
@@ -195,50 +238,119 @@ class QLClassGenerator {
     }
 
     TypeSpec generateResponse(String fileName, String packageName) {
-        MethodSpec.Builder constructor = MethodSpec
-                .constructorBuilder()
-                .addModifiers(Modifier.PUBLIC);
-        MethodSpec.Builder emptyConstructor = MethodSpec
-                .constructorBuilder()
-                .addModifiers(Modifier.PUBLIC);
 
-        createModels(fileName, packageName)
+        return createModels(fileName, packageName)
     }
 
     TypeSpec createModels(String className, String packageName) {
 
-        TypeSpec.Builder queryRespose = TypeSpec.classBuilder(className + "Response").addModifiers(Modifier.PUBLIC);
 
-        for (QLNode root : qlQuery.getQueryFields()) {
-            horizontalTreeReed(root, queryRespose, packageName)
+        ClassName qlResponse = ClassName.get(PACKAGE, "QLResponseModel");
+
+        MethodSpec.Builder emptyConstructor = MethodSpec
+                .constructorBuilder()
+                .addModifiers(Modifier.PUBLIC);
+
+        TypeSpec.Builder queryResponse = TypeSpec
+                .classBuilder(className + "Response")
+                .addModifiers(Modifier.PUBLIC)
+                .addMethod(emptyConstructor.build())
+                .addSuperinterface(qlResponse)
+
+        for (QLElement root : qlQuery.getQueryFields()) {
+            alreadyUsedClassNames.clear();
+            horizontalTreeReed(root, queryResponse, packageName)
+        }
+        queryResponse.addMethod(computeToString(queryResponse));
+
+        return queryResponse.build();
+    }
+
+    MethodSpec computeToString(TypeSpec.Builder typeSpec) {
+        ClassName stringClass = ClassName.get("java.lang", "String");
+        ClassName stringBuild = ClassName.get("java.lang", "StringBuilder");
+        TypeSpec target = typeSpec.build()
+        MethodSpec.Builder toString = MethodSpec.methodBuilder("toString")
+                .addAnnotation(Override.class)
+                .addModifiers(Modifier.PUBLIC)
+                .returns(stringClass)
+                .addStatement("\$T result = new \$T()", stringBuild, stringBuild)
+                .addStatement("result.append(\$S)", target.name)
+                .addStatement("result.append(\"{\\n\")", target.name)
+
+        int i = 0;
+        for (FieldSpec field : target.fieldSpecs) {
+            toString.addStatement("result.append(\"\\\"\")");
+            toString.addStatement("result.append(\$S)", field.name);
+            toString.addStatement("result.append(\"\\\"\")");
+            toString.addStatement("result.append(\":\")");
+            toString.addStatement("result.append(\$N.toString())", field.name);
+            if (i < target.fieldSpecs.size() - 1) {
+                toString.addStatement("result.append(\",\")")
+            }
         }
 
-        return queryRespose.build();
+        toString.addStatement("result.append(\"\\n}\")", target.name)
+        toString.addStatement("return result.toString()")
+
+        return toString.build()
     }
 
     void horizontalTreeReed(QLElement qlElement, TypeSpec.Builder parent, String packageName) {
         String packageNameChild = packageName + "." + parent.build().name;
 
         String elementName = qlElement.getAlias() == null ? qlElement.getName() : qlElement.getAlias();
-
+        ClassName qlModel = ClassName.get(PACKAGE + ".model", "QLModel")
         if (qlElement instanceof QLNode) {
-            TypeSpec.Builder model = TypeSpec.classBuilder(elementName.capitalize())
-                    //.superclass(QLModel.class)
-                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
-            generateFieldSetterGetter(parent, builderType(packageNameChild, elementName, qlElement.isList()), elementName);
-            for (QLElement child : qlElement.getChildren()) {
-                horizontalTreeReed(child, model, packageNameChild);
-            }
-            parent.addType(model.build());
+            convertNode(elementName, qlElement, qlModel, parent, packageNameChild)
         } else if (qlElement instanceof QLLeaf) {
-            QLLeaf leaf = (QLLeaf) qlElement;
-            generateFieldSetterGetter(parent, getType(leaf.getType()), elementName);
+            convertLeaf(qlElement, parent, elementName)
         } else if (qlElement instanceof QLFragmentNode) {
-            QLFragment fragment = qlQuery.findFragment(qlElement.getName());
-            for (QLElement child : fragment.getChildren()) {
-                horizontalTreeReed(child, parent, packageNameChild);
-            }
+            convertFragment(qlElement, parent, packageName)
         }
+    }
+
+    private void convertNode(String elementName, QLNode qlElement, ClassName qlModel, TypeSpec.Builder parent, String packageNameChild) {
+        String typeName = handleUniquenessModelName(elementName, qlElement)
+        TypeSpec.Builder model = TypeSpec.classBuilder(typeName.capitalize())
+                .addSuperinterface(qlModel)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+        generateFieldSetterGetter(parent, builderType(packageNameChild, typeName, qlElement.isList()), elementName);
+        for (QLElement child : qlElement.getChildren()) {
+            horizontalTreeReed(child, model, packageNameChild);
+        }
+        model.addMethod(computeToString(model));
+        parent.addType(model.build());
+    }
+
+    private String handleUniquenessModelName(String elementName, QLNode qlElement) {
+        String typeName = elementName;
+        if (alreadyUsedClassNames.contains(qlElement.name)) {
+            typeName = "sub" + elementName.capitalize();
+        }
+        alreadyUsedClassNames.add(typeName);
+        return typeName
+    }
+
+    private void convertLeaf(QLLeaf qlElement, TypeSpec.Builder parent, String elementName) {
+        QLLeaf leaf = (QLLeaf) qlElement;
+        generateFieldSetterGetter(parent, buildListType(leaf.getType(), leaf.isList()), elementName);
+    }
+
+    private void convertFragment(QLLeaf qlElement, TypeSpec.Builder parent, String packageName) {
+        QLFragment fragment = qlQuery.findFragment(qlElement.getName());
+        for (QLElement child : fragment.getChildren()) {
+            horizontalTreeReed(child, parent, packageName);
+        }
+    }
+
+    TypeName buildListType(QLType type, boolean isList) {
+        final ClassName raw = getType(type);
+        if (!isList) {
+            return raw;
+        }
+        ClassName list = ClassName.get("java.util", "List");
+        return ParameterizedTypeName.get(list, raw);
     }
 
     TypeName builderType(String packageName, final String modelName, boolean isList) {
