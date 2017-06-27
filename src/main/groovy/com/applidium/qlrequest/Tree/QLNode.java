@@ -57,12 +57,28 @@ public class QLNode extends QLElement {
         return super.print();
     }
 
+    public String getElementInfo(boolean shouldSkipParams) {
+        return super.print(shouldSkipParams);
+    }
+
     @Override
     public String print() {
+        return print(true, true);
+    }
+
+    @Override
+    public String print(boolean shouldSkipParams) {
+        return print(shouldSkipParams, true);
+    }
+
+    @Override
+    public String print(boolean shouldSkipParams, boolean shouldAddChildren) {
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(getElementInfo());
-        if (getChildren().size() > 0) {
-            appendChildrens(getChildren(), stringBuilder);
+        stringBuilder.append(getElementInfo(shouldSkipParams));
+        if (shouldAddChildren) {
+            if (getChildren().size() > 0) {
+                appendChildrens(getChildren(), stringBuilder);
+            }
         }
         return stringBuilder.toString();
     }

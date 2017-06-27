@@ -35,6 +35,16 @@ public class QLFragmentNode extends QLElement {
         return "..." + getName();
     }
 
+    @Override
+    public String print(boolean shouldSkipParams) {
+        return print();
+    }
+
+    @Override
+    public String print(boolean shouldSkipParams, boolean shouldAddChildren) {
+        return print();
+    }
+
     public void setChildren(List<QLElement> children) {
         this.children.clear();
         this.children.addAll(children);
