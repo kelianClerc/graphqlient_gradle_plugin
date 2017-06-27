@@ -472,4 +472,68 @@ public class QLParserTest {
         assertEquals(node.getTarget(), "User");
         assertEquals(node.getChildren().size(), 3);
     }
+
+    @Test
+    public void complexeFragmentTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("{users{...userInfo}}fragment userInfo on User {id,name}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getQueryFields().size(), 1);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode qlNode = (QLNode) qlQuery.getQueryFields().get(0);
+        assertThat(((QLNode) qlQuery.getQueryFields().get(0)).getChildren().get(0), instanceOf(QLFragmentNode.class));
+
+    }
+
+    @Test
+    public void complexeFragment2Test() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("{users {...userInfo,email}}fragment userInfo on User {...postInfo}fragment postInfo on Post {id,body}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getQueryFields().size(), 1);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode qlNode = (QLNode) qlQuery.getQueryFields().get(0);
+        assertThat(qlNode.getChildren().get(0), instanceOf(QLFragmentNode.class));
+        assertEquals(qlNode.getChildren().size(), 2);
+        assertEquals(qlNode.getChildren().get(0).getName(), "userInfo");
+        assertEquals(qlNode.getChildren().get(1).getName(), "email");
+    }
+
+    @Test
+    public void enumTypeTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("{users{#-type- STATUS; status}}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getQueryFields().size(), 1);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode node = (QLNode) qlQuery.getQueryFields().get(0);
+        assertEquals(node.getChildren().size(), 1);
+        assertThat(node.getChildren().get(0), instanceOf(QLLeaf.class));
+        QLLeaf leaf = (QLLeaf) node.getChildren().get(0);
+        assertEquals(leaf.getName(), "status");
+        assertEquals(leaf.getType(), QLType.ENUM);
+        assertEquals(leaf.getEnumName(), "STATUS");
+    }
+
+    @Test
+    public void enumParameterTest() throws Exception {
+        QLParser parser = new QLParser();
+        parser.setToParse("query test($id:STATUS!){users{status}}");
+        QLQuery qlQuery = parser.buildQuery();
+        assertEquals(qlQuery.getQueryFields().size(), 1);
+        assertEquals(qlQuery.getParameters().getParams().size(), 1);
+        QLVariablesElement param = qlQuery.getParameters().getParams().get(0);
+        assertEquals(param.getName(), "id");
+        assertEquals(param.getType(), QLType.ENUM);
+        assertEquals(param.getEnumName(), "STATUS");
+        assertEquals(param.isMandatory(), true);
+        assertThat(qlQuery.getQueryFields().get(0), instanceOf(QLNode.class));
+        QLNode node = (QLNode) qlQuery.getQueryFields().get(0);
+        assertEquals(node.getChildren().size(), 1);
+        assertThat(node.getChildren().get(0), instanceOf(QLLeaf.class));
+        QLLeaf leaf = (QLLeaf) node.getChildren().get(0);
+        assertEquals(leaf.getName(), "status");
+        assertEquals(leaf.getType(), QLType.STRING);
+        assertEquals(leaf.getEnumName(), null);
+    }
 }

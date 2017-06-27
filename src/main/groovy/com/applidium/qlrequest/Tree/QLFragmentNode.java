@@ -27,6 +27,7 @@ public class QLFragmentNode extends QLElement {
                 if (i < children.size() - 1) {
                     result += ",";
                 }
+                i++;
             }
             result += "}";
             return result;
