@@ -62,7 +62,25 @@ class QLClassGenerator {
         return className
     }
 
+    static ClassName handleQLTypeParameter (QLType o) {
+        switch (o) {
+            case QLType.ID:
+            case QLType.ENUM:
+            case QLType.STRING:
+                return ClassName.get("java.lang", "String");
+            case QLType.INT:
+                return ClassName.get("java.lang", "Integer");
+            case QLType.FLOAT:
+                return ClassName.get("java.lang", "Float");
+            case QLType.BOOLEAN:
+                return ClassName.get("java.lang", "Boolean");
+        }
+    }
+
     static ClassName getParameterType(Object o) {
+        if (o instanceof QLType) {
+            return handleQLTypeParameter(o)
+        }
         if (o instanceof String) {
             return ClassName.get("java.lang", "String");
         } else if (o instanceof Integer) {
@@ -127,23 +145,29 @@ class QLClassGenerator {
     }
 
     static void generateFieldSetterGetter(TypeSpec.Builder parent, TypeName type, String name) {
-        generateFieldSetterGetter(parent, type, name, false, null);
+        generateFieldSetterGetter(parent, type, name, new QLParameterInitializer(false));
     }
 
     static void generateFieldSetterGetter(
             TypeSpec.Builder parent,
             TypeName type,
             String name,
-            boolean shouldAddAnnotationToField,
-            String linkedTo
+            QLParameterInitializer parameterInitializer
     ) {
         FieldSpec.Builder builder = FieldSpec.builder(type, name, Modifier.PRIVATE)
-        if (shouldAddAnnotationToField) {
+        if (parameterInitializer.shouldAddAnnotationToField) {
             ClassName annotationName = ClassName.get(PACKAGE + ".annotation", "LinkTo");
             AnnotationSpec annotation = AnnotationSpec.builder(annotationName)
-                    .addMember("link", "\$S", linkedTo)
+                    .addMember("link", "\$S", parameterInitializer.linkedTo)
                     .build()
             builder.addAnnotation(annotation);
+        }
+        if (parameterInitializer.getParameter() != null && parameterInitializer.getParameter().getValue() != null) {
+            Object value = parameterInitializer.getParameter().getValue();
+            if (value instanceof String) {
+                value = "\""+value+"\"";
+            }
+            builder.initializer("\$L", value)
         }
         parent.addField(builder.build());
         ParameterSpec param = ParameterSpec.builder(type, name).build()

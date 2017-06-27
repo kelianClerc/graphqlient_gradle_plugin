@@ -1,9 +1,12 @@
 package com.applidium.qlrequest.Tree;
 
 import com.applidium.qlrequest.Query.QLFragment;
+import com.applidium.qlrequest.Query.QLStaticParameter;
 import com.applidium.qlrequest.Query.QLType;
 import com.applidium.qlrequest.Query.QLVariablesElement;
 import com.applidium.qlrequest.exceptions.QLParserException;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.List;
@@ -273,62 +276,86 @@ public class QLHandler {
     }
 
     private static Map<String, Object> getParameters(String stringParameters) {
-        Pattern patternSkip = Pattern.compile("@skip\\((.[^)]*)\\)");
-        Pattern patternInclude = Pattern.compile("@include\\((.[^)]*)\\)");
-        stringParameters = stringParameters.replaceAll(patternSkip.pattern(), "");
-        stringParameters = stringParameters.replaceAll(patternInclude.pattern(), "");
-        stringParameters = stringParameters.replaceAll("[)]", "");
+        String[] stringParametersSplit = cleanStringToGetParameters(stringParameters);
         Map<String, Object> params = new HashMap<>();
-        String[] stringParametersSplit = stringParameters.split("[,]");
         for (String param : stringParametersSplit) {
             String[] unit = param.split("[:]");
             if (unit.length > 1) {
-                Pattern pattern = Pattern.compile("#-param-(\\w+);");
-                Matcher matcher = pattern.matcher(unit[0]);
+                Pattern pattern = Pattern.compile("\\[(\\w*)\\]");
+                Matcher matcher = pattern.matcher(unit[1]);
                 QLType paramType = null;
                 if (matcher.find()) {
-                    paramType = parseType(matcher.group(1));
+                    if (unit[1].startsWith("[")) {
+                        paramType = parseType(matcher.group(1));
+                        unit[1] = unit[1].replaceAll(pattern.pattern(), "");
+                    }
                 }
-                unit[0] = unit[0].replaceAll(pattern.pattern(), "");
-
                 if (unit[0].charAt(0) == '$') {
-                    params.put(unit[0], parseVariableType(unit));
+                    setQueryParam(params, unit);
                 } else if (unit[1].charAt(0) == '$') {
-                    params.put(unit[0], new QLVariablesElement(unit[1].replace("$", "")));
+                    setDynamicParam(params, unit);
                 } else {
                     if (paramType != null) {
-                        switch (paramType) {
-                            case ID:
-                            case STRING:
-                            case ENUM:
-                                params.put(unit[0], unit[1]);
-                                break;
-                            case INT:
-                                params.put(unit[0], Integer.valueOf(unit[1]));
-                                break;
-                            case BOOLEAN:
-                                params.put(unit[0], Boolean.valueOf(unit[1]));
-                                break;
-                            case FLOAT:
-                                params.put(unit[0], Float.valueOf(unit[1]));
-                                break;
-                        }
+                        setStaticEmptyType(params, unit, paramType);
                     } else {
-                        if (unit[1].indexOf("\"")  >= 0) {
-                            unit[1]= unit[1].replaceAll("\"", "");
-                            params.put(unit[0], unit[1]);
-                        } else if (unit[1].equals("true")||unit[1].equals("false")) {
-                            params.put(unit[0], Boolean.valueOf(unit[1]));
-                        } else if (unit[1].indexOf(".")>= 0) {
-                            params.put(unit[0], Float.valueOf(unit[1]));
-                        } else {
-                            params.put(unit[0], Integer.valueOf(unit[1]));
-                        }
+                        guessTypeFromInput(params, unit);
                     }
                 }
             }
         }
         return params;
+    }
+
+    private static void setQueryParam(Map<String, Object> params, String[] unit) {
+        params.put(unit[0], parseVariableType(unit));
+    }
+
+    private static void setDynamicParam(Map<String, Object> params, String[] unit) {
+        params.put(unit[0], new QLVariablesElement(unit[1].replace("$", "")));
+    }
+
+    private static void setStaticEmptyType(Map<String, Object> params, String[] unit, QLType paramType) {
+        Object value = null;
+        switch (paramType) {
+            case ID:
+            case STRING:
+            case ENUM:
+                value = unit[1].trim().isEmpty() ? null: unit[1];
+                break;
+            case INT:
+                value = unit[1].trim().isEmpty() ? null: Integer.valueOf(unit[1]);
+                break;
+            case BOOLEAN:
+                value = unit[1].trim().isEmpty() ? null: Boolean.valueOf(unit[1]);
+                break;
+            case FLOAT:
+                value = unit[1].trim().isEmpty() ? null: Float.valueOf(unit[1]);
+                break;
+        }
+        params.put(unit[0], new QLStaticParameter(paramType, value));
+    }
+
+    private static void guessTypeFromInput(Map<String, Object> params, String[] unit) {
+        if (unit[1].contains("\"")) {
+            unit[1]= unit[1].replaceAll("\"", "");
+            params.put(unit[0], unit[1]);
+        } else if (unit[1].equals("true")||unit[1].equals("false")) {
+            params.put(unit[0], Boolean.valueOf(unit[1]));
+        } else if (unit[1].contains(".")) {
+            params.put(unit[0], Float.valueOf(unit[1]));
+        } else {
+            params.put(unit[0], Integer.valueOf(unit[1]));
+        }
+    }
+
+    @NotNull
+    private static String[] cleanStringToGetParameters(String stringParameters) {
+        Pattern patternSkip = Pattern.compile("@skip\\((.[^)]*)\\)");
+        Pattern patternInclude = Pattern.compile("@include\\((.[^)]*)\\)");
+        stringParameters = stringParameters.replaceAll(patternSkip.pattern(), "");
+        stringParameters = stringParameters.replaceAll(patternInclude.pattern(), "");
+        stringParameters = stringParameters.replaceAll("[)]", "");
+        return stringParameters.split("[,]");
     }
 
     private static QLVariablesElement parseVariableType(String[] unit) {

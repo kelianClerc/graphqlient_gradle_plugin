@@ -2,6 +2,7 @@ package com.applidium.qlrequest
 
 import com.applidium.qlrequest.Query.QLFragment
 import com.applidium.qlrequest.Query.QLQuery
+import com.applidium.qlrequest.Query.QLStaticParameter
 import com.applidium.qlrequest.Query.QLVariablesElement
 import com.applidium.qlrequest.Tree.QLElement
 import com.applidium.qlrequest.Tree.QLFragmentNode
@@ -10,6 +11,7 @@ import com.applidium.qlrequest.Tree.QLNode
 import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.FieldSpec
+import com.squareup.javapoet.ParameterSpec
 import com.squareup.javapoet.TypeSpec
 
 import static javax.lang.model.element.Modifier.PUBLIC
@@ -52,7 +54,7 @@ public class QLStaticParameterGenerator {
         boolean shouldAddToParent = false;
         String nodeName = computeNodeName(element)
         TypeSpec.Builder subNode = TypeSpec.classBuilder(nodeName).addModifiers(PUBLIC, STATIC);
-        String packageNodeName = parentPackage.equals("") ? nodeName : parentPackage + "." + nodeName;
+        String packageNodeName = parentPackage.equals("") ? nodeName : parentPackage + "()." + nodeName;
 
         if (element instanceof QLNode) {
             shouldAddToParent = createNodeClass(element, subNode, varNameDictionnary, packageNodeName)
@@ -63,7 +65,10 @@ public class QLStaticParameterGenerator {
         }
 
         if (shouldAddToParent) {
-            QLRequestGenerator.addNestedClassToParent(parent, subNode, parentPackage, nodeName.capitalize())
+            QLRequestGenerator.addNestedClassToParent(parent, subNode, parentPackage.replaceAll("(\\(|\\))", ""), nodeName.capitalize())
+
+            ClassName fieldType = ClassName.get(parentPackage.replaceAll("(\\(|\\))", ""), subNode.build().name)
+            parent.addMethod(QLClassGenerator.generateGetter(ParameterSpec.builder(fieldType,nodeName.capitalize()).build()))
         } else {
             alreadyUsedClassNamesRequest.remove(packageNodeName);
         }
@@ -117,7 +122,7 @@ public class QLStaticParameterGenerator {
                 queryAsStringWithParameterAdded.add("\\\"\$N\\\"", target);
                 queryAsStringWithParameterAdded.add(":");
                 queryAsStringWithParameterAdded.add("\$L" ,'"+');
-                queryAsStringWithParameterAdded.add("\$N.\$N()", packageToCurrentClass, fieldSpec.name);
+                queryAsStringWithParameterAdded.add("\$N().\$N()", packageToCurrentClass, fieldSpec.name);
                 queryAsStringWithParameterAdded.add("\$L" ,'+"');
                 if (i < fields.size() - 1) {
                     queryAsStringWithParameterAdded.add(",");
@@ -181,6 +186,9 @@ public class QLStaticParameterGenerator {
 
             if(checkStaticParameterInFragmentChildren(fragment, fragmentClass, fragmentName)) {
                 QLRequestGenerator.addNestedClassToParent(query, fragmentClass, "", fragmentName)
+
+                ClassName fieldType = ClassName.get("", fragmentClass.build().name)
+                query.addMethod(QLClassGenerator.generateGetter(ParameterSpec.builder(fieldType,fragmentName).build()))
             } else {
                 alreadyUsedClassNamesRequest.remove(fragmentName);
             }
@@ -220,12 +228,15 @@ public class QLStaticParameterGenerator {
     boolean createParameterField(QLElement element, TypeSpec.Builder parent, List<String> varNameDictionnary) {
         boolean parentModelWontBeEmpty = false;
         for (String key :element.parameters.keySet()) {
-            if (element.parameters.get(key) instanceof QLVariablesElement) {
+            Object value = element.parameters.get(key);
+            if (value instanceof QLVariablesElement) {
                 continue;
-            } else {
+            } else if (value instanceof QLStaticParameter) {
+                QLStaticParameter parameter = (QLStaticParameter) value
                 String paramName = computeParamName(key, varNameDictionnary, element);
-                ClassName paramType = QLClassGenerator.getParameterType(element.parameters.get(key));
-                QLClassGenerator.generateFieldSetterGetter(parent, paramType, paramName, true, key);
+                ClassName paramType = QLClassGenerator.getParameterType(parameter.getType());
+                QLParameterInitializer parameterInitializer = new QLParameterInitializer(true, key, parameter);
+                QLClassGenerator.generateFieldSetterGetter(parent, paramType, paramName, parameterInitializer);
                 parentModelWontBeEmpty = true
             }
         }

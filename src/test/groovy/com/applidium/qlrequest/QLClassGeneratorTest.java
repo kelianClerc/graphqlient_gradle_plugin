@@ -49,7 +49,7 @@ public class QLClassGeneratorTest {
     @Test
     public void generateTreeQueryTest() throws Exception {
         QLQuery qlQuery;
-        String query = "{users {id(id:3,name:4),email(id:5)}}";
+        String query = "{users {id(id:[ID]3,name:[Int]4),email(id:5)}}";
 
         QLParser parser = new QLParser();
         parser.setToParse(query);
@@ -62,8 +62,8 @@ public class QLClassGeneratorTest {
 
         assertEquals(response.fieldSpecs.size(), 3);
         assertEquals(response.typeSpecs.size(), 1);
-        assertEquals(response.typeSpecs.get(0).fieldSpecs.size(), 2);
-        assertEquals(response.typeSpecs.get(0).typeSpecs.size(), 2);
+        assertEquals(response.typeSpecs.get(0).fieldSpecs.size(), 1);
+        assertEquals(response.typeSpecs.get(0).typeSpecs.size(), 1);
         assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).name, "Id");
         assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).fieldSpecs.size(),2);
         assertEquals(response.typeSpecs.get(0).typeSpecs.get(0).fieldSpecs.get(0).name, "id");
