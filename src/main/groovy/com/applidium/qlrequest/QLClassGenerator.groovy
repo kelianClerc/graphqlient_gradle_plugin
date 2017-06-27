@@ -54,16 +54,34 @@ class QLClassGenerator {
         computeVarsMap(fields, getterAndSetter);
         boolean areConstructorParam = fields.size() > 0;
         addTarget(fields, getterAndSetter, packageName, className);
-        addQuery(fields, getterAndSetter, mandatoryFields);
+        TypeSpec.Builder query;
 
-        ClassName qlRequest = ClassName.get(PACKAGE, "QLRequest");
+        if (qlQuery.isMutation()) {
 
-        TypeSpec.Builder query = TypeSpec.classBuilder(className + "Request")
-                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                .addMethod(constructor.build())
-                .addFields(fields)
-                .addMethods(getterAndSetter)
-                .addSuperinterface(qlRequest)
+            addQuery(fields, getterAndSetter, mandatoryFields, "mutation")
+
+            ClassName qlMutation = ClassName.get(PACKAGE, "QLMutation");
+
+            query = TypeSpec.classBuilder(className + "Mutation")
+                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                    .addMethod(constructor.build())
+                    .addFields(fields)
+                    .addMethods(getterAndSetter)
+                    .addSuperinterface(qlMutation)
+
+        } else {
+
+            addQuery(fields, getterAndSetter, mandatoryFields, "query");
+
+            ClassName qlRequest = ClassName.get(PACKAGE, "QLRequest");
+
+            query = TypeSpec.classBuilder(className + "Request")
+                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                    .addMethod(constructor.build())
+                    .addFields(fields)
+                    .addMethods(getterAndSetter)
+                    .addSuperinterface(qlRequest)
+        }
 
         if (areConstructorParam) {
             query.addMethod(emptyConstructor.build());
@@ -209,19 +227,20 @@ class QLClassGenerator {
     private void addQuery(
             ArrayList<FieldSpec> fields,
             ArrayList<MethodSpec> methods,
-            ArrayList<FieldSpec> mandatoryFields
+            ArrayList<FieldSpec> mandatoryFields,
+            String name
     ) {
         FieldSpec.Builder queryField = FieldSpec
-                .builder(String.class, "query", Modifier.PRIVATE, Modifier.FINAL);
+                .builder(String.class, name, Modifier.PRIVATE, Modifier.FINAL);
         queryField.initializer("\$S", qlQuery.printQuery())
         fields.add(queryField.build())
-        methods.add(getQuery(mandatoryFields))
+        methods.add(getQuery(mandatoryFields, name))
     }
 
-    private MethodSpec getQuery(List<FieldSpec> mandatoryFields) {
+    private MethodSpec getQuery(List<FieldSpec> mandatoryFields, String name) {
         ClassName exception = ClassName.get(PACKAGE + ".exceptions", "QLException");
 
-        MethodSpec.Builder statement = MethodSpec.methodBuilder("query")
+        MethodSpec.Builder statement = MethodSpec.methodBuilder(name)
                 .addModifiers(Modifier.PUBLIC)
                 .addAnnotation(Override.class)
                 .returns(String.class)
@@ -233,7 +252,7 @@ class QLClassGenerator {
             statement.addStatement(throwMessage, exception, field.name);
             statement.endControlFlow();
         }
-        statement.addStatement("return \$N", "query");
+        statement.addStatement("return \$N", name);
         return statement.build()
     }
 
