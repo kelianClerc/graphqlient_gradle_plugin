@@ -121,12 +121,61 @@ It has fields corresponding to the fields of the response. It also contains nest
 corresponding to sub objects of the query. 
 It will be mapped with the response from the GraphQL server by `graphqlient` library.
 
+## Enum
+Enum are considered as GraphQL scalar types. In order to use enums in query, you can create `*.qlenum` files containing the different values.
+`GraphQLient Plugin` will generate an enum which can be used in your requests. It will be named with the following pattern :
+`FileNameQLEnum`.
+
+Example :
+statuses.qlenum :
+``` 
+ONLINE, OFFLINE, IDLE
+```
+
+StatusesQLEnum.java :
+```java
+public enum StatusesQLEnum implements QLEnum {
+  ONLINE("ONLINE"), OFFLINE("OFFLINE"), IDLE("IDLE");
+  
+  private final String id;
+
+    private StatusesQLEnum(final String id) {
+        this.id = id;
+    }
+
+    @Override
+    public String toString() {
+        return id;
+    }
+}
+```
+
+To use this enum in a `.graphql` file you must use `StatusesQLEnum`
+
 ## Todo
 Todo
 
 ## Download
-To use this plugin, you need [jitpack](https://jitpack.io/). 
- Then, add to you classpath : \
-`classpath 'com.github.kelianClerc:graphqlient_gradle_plugin:develop-SNAPSHOT'`
- Then, in your `build.gradle` (app) apply the plugin :\
- `apply plugin: 'com.applidium.qlrequest'`
+Add `jitpack` repository in project's `build.gradle`
+
+```
+buildscript {
+    repositories {
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath 'com.github.kelianClerc:graphqlient_gradle_plugin:develop-SNAPSHOT'
+    }
+}
+
+```
+
+Add to module's `build.gradle` :
+```
+apply plugin: 'com.applidium.qlrequest'
+
+#If you want to use GraphQLient library add this dependency
+dependencies {
+    compile "com.github.kelianClerc:graphqlient_library:develop-SNAPSHOT"
+}
+```
