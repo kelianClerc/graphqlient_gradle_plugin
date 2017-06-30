@@ -40,6 +40,9 @@ class QLClassGenerator {
         QLParser parser = new QLParser();
         parser.setToParse(fileContent);
         this.queryAsTree = parser.buildQuery();
+        if (queryAsTree == null) {
+            return files;
+        }
         QLRequestGenerator requestGenerator =
                 new QLRequestGenerator(queryAsTree, rootClassPackageName);
         QLResponseGenerator responseGenerator =
