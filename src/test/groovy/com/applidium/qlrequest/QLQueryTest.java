@@ -54,13 +54,13 @@ public class QLQueryTest {
         assertEquals(1, 1);
         assertEquals(getRootElement.size(), 1);
 
-        assertEquals(((QLNode)getRootElement.get(0)).getElementInfo(), "1");
+        assertEquals(((QLNode)getRootElement.get(0)).getElementInfo(), "1{2,3{4}}");
         List<QLElement> rootChildren = ((QLNode)getRootElement.get(0)).getChildren();
         assertEquals(rootChildren.size(), 2);
         assertEquals(rootChildren.get(0).print(), "2");
         assertThat(rootChildren.get(1), instanceOf(QLNode.class));
         QLNode node = (QLNode) rootChildren.get(1);
-        assertEquals(node.getElementInfo(), "3");
+        assertEquals(node.getElementInfo(), "3{4}");
         List<QLElement> secondeChildren = node.getChildren();
         assertEquals(secondeChildren.size(), 1);
         assertEquals(secondeChildren.get(0).print(), "4");

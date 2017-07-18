@@ -65,7 +65,7 @@ public class QLParser {
 
     public QLQuery buildQuery() throws QLParserException {
         if (toParse == null || toParse.isEmpty()) {
-            throw new QLParserException("No string provided to be parsed");
+            return null;
         }
         parseFragments(initialString);
         parseQuery();
@@ -114,6 +114,8 @@ public class QLParser {
         }
         else if (substring.length() == 0) {
             parseQueryHeader("");
+        } else {
+            throw new QLParserException("Not a valid header : " + substring);
         }
         trimString(endIndex + 1);
         this.toParse = toParse.replaceAll(" ", "");
@@ -156,7 +158,9 @@ public class QLParser {
 
         QLNode childrePlaceHolder = new QLNode("tmp");
         queryHandler.parseBody(-1, childrePlaceHolder);
-        query.setQueryFields(childrePlaceHolder.getChildren());
+        if (query != null) {
+            query.setQueryFields(childrePlaceHolder.getChildren());
+        }
     }
 
     private void parseFragmentHeader(String substring) throws QLParserException {
