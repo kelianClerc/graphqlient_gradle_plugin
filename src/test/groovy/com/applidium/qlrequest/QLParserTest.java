@@ -17,7 +17,7 @@ import java.util.List;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
-import static junit.framework.Assert.fail;
+import static junit.framework.TestCase.fail;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertThat;
 
@@ -26,12 +26,7 @@ public class QLParserTest {
     @Test
     public void initClass() throws Exception {
         QLParser parser = new QLParser();
-        try {
-            assertEquals(parser.buildQuery(), null);
-            fail("QLParserException should have been thrown");
-        } catch (QLParserException e) {
-            assertEquals(e.getMessage(), "No string provided to be parsed");
-        }
+        assertEquals(parser.buildQuery(), null);
 
         QLParser parser2 = new QLParser("string");
         try {

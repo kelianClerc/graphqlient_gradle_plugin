@@ -63,7 +63,7 @@ public class QLParser {
         this.toParse = initialString = toParse;
     }
 
-    public QLQuery buildQuery() {
+    public QLQuery buildQuery() throws QLParserException {
         if (toParse == null || toParse.isEmpty()) {
             return null;
         }
