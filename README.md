@@ -176,6 +176,7 @@ apply plugin: 'com.applidium.qlrequest'
 
 #If you want to use GraphQLient library add this dependency
 dependencies {
-    compile "com.github.kelianClerc:graphqlient_library:develop-SNAPSHOT"
+    compile 'com.github.kelianClerc.graphlqlient_library:graphqlient:498b237d09'
+    compile 'com.github.kelianClerc.graphlqlient_library:gson:498b237d09'
 }
 ```
