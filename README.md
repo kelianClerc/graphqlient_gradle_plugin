@@ -1,24 +1,24 @@
 # GraphQLientPlugin
 
-GraphQLient plugin ease communication between an *Android application* and a *GraphQL server*. \
+GraphQLient plugin eases communication between an *Android application* and a *GraphQL server*. \
 It goes along with 
 [Graphqlient library that can be found here](https://github.com/kelianClerc/graphlqlient_library).
 
-This plugin takes a graphql request and generate two java classes from it : `QueryNameRequest` and 
+This plugin takes a graphql request and generates two java classes from it : `QueryNameRequest` and 
 `QueryNameResponse`\
-The request file has request parameters as fields to ease dynamic use of the queries.\
- The response file contains the fields in which the response will be map.
+The request file has request parameters as fields to ease a dynamic use of the queries.\
+ The response file contains the fields in which the response will be mapped.
 
-## Requests\
+## Requests
 ### Where to store requests
-At the root of your project create a `graphql` folder that will contain all the request you want to 
+At the root of your project create a `graphql` folder that will contain all the requests you want to 
 use.
 The requests will be saved under `*.graphql extension.`
 
 ### Request Construction
-`*.graphql` files contain valid graphql requests. You have to master Graphql specification to create
+`*.graphql` files contains valid graphql requests. You have to master Graphql specification to create
  Graphql request. You can find it [here](http://graphql.org/learn/)\
-However, some improvements have been implemented in this plugin in order to generate more accurately 
+However, some improvements have been implemented in this plugin in order to generate more accurate
 classes
 #### Field Typing
 Because a graphql request is part of an HTTP request, their is no native variable typing in it. 
@@ -80,7 +80,7 @@ The request class generated will be named after the graphql query.\
 For instance, with the query having the header : `query allUsersWithFriends(params) { fields }`
 the class `AllUsersWithFriendsQLRequest` will be generated.
 
-GraphQL request can be annonymous. In that case, the generated class will be named after the file
+GraphQL request can be anonymous. In that case, the generated class will be named after the file
 name.\
 For instance, with the file `allUsers.graphql` containing `{users{name}}`, the plugin will generate 
 the class `AllUsersQLRequest`.
@@ -116,8 +116,8 @@ request.
 If you need it you can retrieve the string request that will be sent to the server with `userRequest.query()`
 
 ## Response
-The plugin also generate a QLResponse class, named the same way that QLRequest class.
-It has fields corresponding to the fields of the response. It also contains nested class 
+The plugin also generates a QLResponse class, named the same way as QLRequest class.
+It has fields corresponding to the fields of the response. It also contains nested classes 
 corresponding to sub objects of the query. 
 It will be mapped with the response from the GraphQL server by `graphqlient` library.
 
